@@ -40,13 +40,14 @@ public nonisolated struct ElementScanner: Sendable {
     /// without querying their actions (one IPC round-trip saved per control).
     static let actionableRoles: Set<String> = [
         "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton",
-        "AXDisclosureTriangle", "AXLink", "AXTextField", "AXTextArea", "AXComboBox",
-        "AXSlider", "AXIncrementor", "AXColorWell",
+        "AXDisclosureTriangle", "AXLink", "AXComboBox", "AXSlider", "AXIncrementor", "AXColorWell",
     ]
+    // AXTextField and AXTextArea are not listed: read-only text (Terminal output,
+    // consoles) exposes no real action and must not get a hint.
 
     /// Inside a list row only these stay separate targets; cells, labels and
     /// icons are covered by the row itself (one hint per row, no IPC for them).
-    static let rowControlRoles: Set<String> = actionableRoles.subtracting(["AXTextField", "AXTextArea"])
+    static let rowControlRoles: Set<String> = actionableRoles
 
     /// Rows of one table share their structure: when this many rows contain no
     /// control, the remaining rows are hinted without reading their content.
@@ -137,7 +138,7 @@ public nonisolated struct ElementScanner: Sendable {
         let childInRow = inRow || attributes.role == "AXRow"
         if !readsContent {
             // A row past a plain sample: its content is assumed to hold no control.
-        } else if attributes.role == "AXWebArea", let targets = node.webTargets() {
+        } else if attributes.role == "AXWebArea", let targets = node.webTargets(deadline: state.deadline) {
             for target in targets {
                 visitWebTarget(target, clip: childClip, isCancelled: isCancelled, state: &state)
             }

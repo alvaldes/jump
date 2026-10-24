@@ -71,11 +71,12 @@ final class HintModeController {
 
         let appName = app.localizedName ?? "Unknown app"
         let pid = app.processIdentifier
-        // Usually already done on activation; covers apps that were in front before JUMP started.
-        webAccessibility.enable(pid: pid, bundleIdentifier: app.bundleIdentifier)
+        let bundleIdentifier = app.bundleIdentifier
         // Latency budget (spec §3.9) is measured from the hotkey to hints on screen.
         let start = ContinuousClock.now
         scanTask = Task {
+            // Usually already done on activation; covers apps that were in front before JUMP started.
+            await webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier)
             let outcome = await Result { try await FocusedWindowScanner.scan(pid: pid) }
             // Dismissed while scanning; nothing to show.
             guard !Task.isCancelled else { return }
@@ -189,7 +190,7 @@ final class HintModeController {
             let bundleIdentifier = app?.bundleIdentifier
             MainActor.assumeIsolated {
                 guard let self, self.permission.isTrusted else { return }
-                self.webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier)
+                Task { await self.webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier) }
             }
         }
         appQuitObserver = NSWorkspace.shared.notificationCenter.addObserver(

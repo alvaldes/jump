@@ -76,7 +76,7 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
         "AXLinkSearchKey", "AXRadioGroupSearchKey", "AXTextFieldSearchKey",
     ]
 
-    public func webTargets() -> [AXNode]? {
+    public func webTargets(deadline: ContinuousClock.Instant) -> [AXNode]? {
         let query: [String: Any] = [
             "AXDirection": "AXDirectionNext",
             "AXImmediateDescendantsOnly": false,
@@ -99,7 +99,10 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
         if elements.isEmpty {
             // Older Chromium only honors a single search key per query.
             var seen = Set<AXUIElement>()
-            elements = Self.webSearchKeys.flatMap { search($0).elements }.filter { seen.insert($0).inserted }
+            // Up to seven more round-trips, so stop when the scan's time is up.
+            for key in Self.webSearchKeys where ContinuousClock.now < deadline {
+                elements += search(key).elements.filter { seen.insert($0).inserted }
+            }
         }
         return elements.map { AXNode($0, prefetchesChildren: false) }
     }

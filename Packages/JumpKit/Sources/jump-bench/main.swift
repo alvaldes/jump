@@ -82,8 +82,8 @@ nonisolated struct TimedNode: AccessibilityNode {
     func children(role: String) -> [TimedNode] {
         stats.measure("children") { base.children(role: role) }.map(TimedNode.init)
     }
-    func webTargets() -> [TimedNode]? {
-        stats.measure("webSearch") { base.webTargets() }?.map(TimedNode.init)
+    func webTargets(deadline: ContinuousClock.Instant) -> [TimedNode]? {
+        stats.measure("webSearch") { base.webTargets(deadline: deadline) }?.map(TimedNode.init)
     }
 }
 

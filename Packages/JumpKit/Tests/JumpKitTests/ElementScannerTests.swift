@@ -1,3 +1,4 @@
+import Synchronization
 import CoreGraphics
 import Testing
 @testable import JumpKit
@@ -13,7 +14,11 @@ private nonisolated struct FakeNode: AccessibilityNode {
     func attributes(prefetchingChildren: Bool) -> NodeAttributes? { attrs }
     func actions() -> [String] { actionNames }
     func children(role: String) -> [FakeNode] { kids }
-    func webTargets() -> [FakeNode]? { searchResults }
+    static let lastSearchDeadline = Mutex<ContinuousClock.Instant?>(nil)
+    func webTargets(deadline: ContinuousClock.Instant) -> [FakeNode]? {
+        Self.lastSearchDeadline.withLock { $0 = deadline }
+        return searchResults
+    }
 }
 
 private func node(
@@ -58,6 +63,23 @@ struct ElementScannerTests {
         // query saves one IPC round-trip per control.
         let root = window([node("button", role: "AXButton", actions: [])])
         #expect(scannedIDs(root) == ["button"])
+    }
+
+    @Test func readOnlyTextIsNotATargetButEditableTextIs() {
+        // Terminal's output is an AXTextArea with only AXShowMenu; a field has AXConfirm.
+        let root = window([
+            node("output", role: "AXTextArea", frame: CGRect(x: 0, y: 0, width: 400, height: 300), actions: ["AXShowMenu"]),
+            node("field", role: "AXTextField", frame: CGRect(x: 0, y: 310, width: 200, height: 20), actions: ["AXConfirm"]),
+        ])
+        #expect(scannedIDs(root) == ["field"])
+    }
+
+    @Test func webSearchReceivesTheScanDeadline() {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+        var webArea = node("web", role: "AXWebArea", frame: CGRect(x: 0, y: 0, width: 800, height: 600))
+        webArea.searchResults = []
+        _ = ElementScanner().scan(root: window([webArea]), deadline: deadline)
+        #expect(FakeNode.lastSearchDeadline.withLock { $0 } == deadline)
     }
 
     @Test func pureContainersAreNeverTargets() {

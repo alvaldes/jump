@@ -20,11 +20,12 @@ public protocol AccessibilityNode: Sendable {
 
     /// For a web area: its visible interactive elements in one query, or `nil`
     /// when the engine does not support accessibility search predicates.
-    nonisolated func webTargets() -> [Self]?
+    /// Implementations stop issuing further queries once `deadline` passes.
+    nonisolated func webTargets(deadline: ContinuousClock.Instant) -> [Self]?
 }
 
 extension AccessibilityNode {
-    public nonisolated func webTargets() -> [Self]? { nil }
+    public nonisolated func webTargets(deadline: ContinuousClock.Instant) -> [Self]? { nil }
 }
 
 public nonisolated struct NodeAttributes: Sendable, Equatable {

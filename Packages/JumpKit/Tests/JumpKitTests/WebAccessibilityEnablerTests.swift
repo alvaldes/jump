@@ -76,4 +76,18 @@ struct WebAccessibilityEnablerTests {
         #expect(restored.map(\.attribute) == ["AXManualAccessibility", "AXEnhancedUserInterface"])
         #expect(restored.allSatisfy { !$0.value })
     }
+
+    @Test func quitAppsAreForgottenSoAReusedPidIsHandledAgain() {
+        let apps = FakeApps()
+        apps.supported[10] = ["AXManualAccessibility"]
+        let enabler = WebAccessibilityEnabler(setAttribute: apps.setter)
+        enabler.enable(pid: 10, bundleIdentifier: "md.obsidian")
+
+        enabler.forget(pid: 10)
+        enabler.restoreAll()
+        #expect(apps.writes.count == 1, "nothing restored for an app that quit")
+
+        enabler.enable(pid: 10, bundleIdentifier: "md.obsidian")
+        #expect(apps.writes.count == 2, "a new app with the same pid is enabled")
+    }
 }

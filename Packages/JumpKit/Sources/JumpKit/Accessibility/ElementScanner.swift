@@ -162,7 +162,7 @@ public nonisolated struct ElementScanner: Sendable {
         // Skipped when part of the row was not scanned: its content is then unknown.
         let rowFullyScanned = !state.isStopped && state.skippedBranches == skippedBeforeChildren
         if !isTarget, rowFullyScanned, attributes.role == "AXRow",
-           state.elements.count == countBeforeChildren, let visibleFrame {
+           !state.elements[countBeforeChildren...].contains(where: Self.coversRow), let visibleFrame {
             state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
         return visibleFrame
@@ -196,10 +196,16 @@ public nonisolated struct ElementScanner: Sendable {
     /// the same table need not be read: it holds no control, or only the
     /// button that labels it at its leading edge (System Settings sidebar).
     private static func rowStandsIn<Node>(for added: ArraySlice<ScannedElement<Node>>, rowFrame: CGRect?) -> Bool {
-        let controls = added.filter { $0.role != "AXRow" }
+        let controls = added.filter(coversRow)
         guard let control = controls.first else { return true }
         guard controls.count == 1, control.role == "AXButton", let rowFrame else { return false }
         return control.frame.minX - rowFrame.minX <= leadingLabelInset
+    }
+
+    /// Whether a target found inside a row replaces the row's own hint. A
+    /// disclosure triangle only expands the row, so the row stays a target.
+    private static func coversRow<Node>(_ element: ScannedElement<Node>) -> Bool {
+        element.role != "AXRow" && element.role != "AXDisclosureTriangle"
     }
 
     /// How far from a row's leading edge its label button may start.

@@ -26,9 +26,11 @@ public final class HintOverlay {
     /// hotkey press, which otherwise pays ~45 ms for it. Call at launch and
     /// whenever the display arrangement changes.
     public func prepare() {
+        // Rebuilding panels now would remove visible hints while input still
+        // goes to hint mode; `show` resyncs them next time anyway.
+        guard !isVisible else { return }
         syncPanels(with: NSScreen.screens)
         HintsView.warmUpTextRendering()
-        guard !isVisible else { return }
         // The window server allocates a panel's backing store the first time it
         // is shown. Showing the empty, transparent, click-through panels once
         // now moves that cost out of the first hotkey press.

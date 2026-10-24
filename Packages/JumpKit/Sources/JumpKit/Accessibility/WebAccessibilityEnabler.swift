@@ -42,6 +42,12 @@ public final class WebAccessibilityEnabler {
         }
     }
 
+    /// Drops an app that quit, so a later process reusing its pid is handled
+    /// fresh and never restored by mistake.
+    public func forget(pid: pid_t) {
+        handled[pid] = nil
+    }
+
     /// Restores every app JUMP changed. Call when JUMP quits.
     public func restoreAll() {
         for case let (pid, attribute?) in handled {

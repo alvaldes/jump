@@ -21,6 +21,7 @@ final class HintModeController {
     private var screenObserver: (any NSObjectProtocol)?
     private var activationObserver: (any NSObjectProtocol)?
     private var terminationObserver: (any NSObjectProtocol)?
+    private var appQuitObserver: (any NSObjectProtocol)?
     private var hints: [Hint<AXNode>] = []
     private var input = HintInput(labels: [])
 
@@ -190,6 +191,15 @@ final class HintModeController {
                 guard let self, self.permission.isTrusted else { return }
                 self.webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier)
             }
+        }
+        appQuitObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard let pid = app?.processIdentifier else { return }
+            MainActor.assumeIsolated { self?.webAccessibility.forget(pid: pid) }
         }
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,

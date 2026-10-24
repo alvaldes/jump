@@ -168,6 +168,25 @@ struct ElementScannerTests {
         #expect(scannedIDs(window([webArea])) == ["imageButton"])
     }
 
+    @Test func disclosureTrianglesDoNotHideTheirRow() {
+        // Finder folder rows: the triangle expands, the row selects/opens. Both need a hint.
+        let rows = (0..<5).map { index -> FakeNode in
+            let y = CGFloat(index) * 20
+            return node("r\(index)", role: "AXRow", frame: CGRect(x: 0, y: y, width: 400, height: 20), [
+                node("r\(index).triangle", role: "AXDisclosureTriangle", frame: CGRect(x: 2, y: y + 4, width: 12, height: 12)),
+                node("r\(index).cell", role: "AXCell", frame: CGRect(x: 16, y: y, width: 380, height: 20)),
+            ])
+        }
+        let result = ElementScanner().scan(
+            root: window([node("outline", role: "AXOutline", frame: CGRect(x: 0, y: 0, width: 400, height: 400), rows)]),
+            deadline: farFuture
+        )
+        let ids = result.elements.map(\.node.id)
+        #expect(Array(ids.prefix(6)) == ["r0.triangle", "r0", "r1.triangle", "r1", "r2.triangle", "r2"])
+        // Rows with only a triangle still stand in for their content, so sampling stays on.
+        #expect(ids.suffix(2) == ["r3", "r4"])
+    }
+
     @Test func neverIncludesWindowsOrScrollAreas() {
         let root = window([
             node("scroll", role: "AXScrollArea", actions: ["AXPress"], [

@@ -7,6 +7,7 @@ struct MenuContent: View {
     let hintMode: HintModeController
 
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         if permission.isTrusted {
@@ -20,6 +21,13 @@ struct MenuContent: View {
         }
 
         Divider()
+
+        Button("Settings…") {
+            // A menu bar agent is not active; bring the window to the front.
+            NSApp.activate()
+            openSettings()
+        }
+        .keyboardShortcut(",")
 
         Button("Quit JUMP") {
             NSApp.terminate(nil)

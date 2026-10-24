@@ -11,6 +11,7 @@ final class HintModeController {
     private(set) var lastSummary: String?
 
     private let permission: AccessibilityPermission
+    private let settings: JumpSettings
     private let overlay = HintOverlay()
     private let webAccessibility = WebAccessibilityEnabler()
     private let logger = Logger(subsystem: "com.alvaldes.jump", category: "hints")
@@ -31,8 +32,9 @@ final class HintModeController {
         static let space: UInt16 = 49
     }
 
-    init(permission: AccessibilityPermission) {
+    init(permission: AccessibilityPermission, settings: JumpSettings) {
         self.permission = permission
+        self.settings = settings
         overlay.prepare()
         if permission.isTrusted {
             Task { await FocusedWindowScanner.warmUp() }
@@ -93,7 +95,7 @@ final class HintModeController {
 
     private func present(_ result: ScanResult<AXNode>, appName: String, start: ContinuousClock.Instant) {
         let scanned = ContinuousClock.now
-        let hints = HintAssigner.assign(result.elements, characters: HintLabels.defaultCharacters)
+        let hints = HintAssigner.assign(result.elements, characters: settings.hintCharacters)
         if let first = hints.first {
             self.hints = hints
             input = HintInput(labels: hints.map(\.label))

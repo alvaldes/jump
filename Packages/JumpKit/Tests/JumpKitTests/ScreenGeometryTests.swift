@@ -26,6 +26,11 @@ struct ScreenGeometryTests {
         #expect(appKit == CGRect(x: 0, y: -200, width: 100, height: 100))
     }
 
+    @Test func flipsAPoint() {
+        let point = ScreenGeometry.appKitPoint(fromAX: CGPoint(x: 100, y: 50), primaryScreenHeight: primaryHeight)
+        #expect(point == CGPoint(x: 100, y: 850))
+    }
+
     @Test func conversionIsReversible() {
         let ax = CGRect(x: -300, y: 120, width: 40, height: 60)
         let appKit = ScreenGeometry.appKitRect(fromAX: ax, primaryScreenHeight: primaryHeight)

@@ -12,6 +12,10 @@ public nonisolated enum ScreenGeometry {
         CGRect(x: rect.minX, y: primaryScreenHeight - rect.maxY, width: rect.width, height: rect.height)
     }
 
+    public static func appKitPoint(fromAX point: CGPoint, primaryScreenHeight: CGFloat) -> CGPoint {
+        CGPoint(x: point.x, y: primaryScreenHeight - point.y)
+    }
+
     public static func axRect(fromAppKit rect: CGRect, primaryScreenHeight: CGFloat) -> CGRect {
         CGRect(x: rect.minX, y: primaryScreenHeight - rect.maxY, width: rect.width, height: rect.height)
     }

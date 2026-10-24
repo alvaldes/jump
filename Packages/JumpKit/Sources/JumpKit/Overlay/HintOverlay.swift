@@ -4,10 +4,13 @@ import AppKit
 public struct HintPresentation: Sendable, Equatable {
     public let label: String
     public let anchor: HintAnchor
+    /// Element frame in AX coordinates.
+    public let elementFrame: CGRect
 
-    public nonisolated init(label: String, anchor: HintAnchor) {
+    public nonisolated init(label: String, anchor: HintAnchor, elementFrame: CGRect) {
         self.label = label
         self.anchor = anchor
+        self.elementFrame = elementFrame
     }
 }
 
@@ -31,13 +34,16 @@ public final class HintOverlay {
 
         for panel in panels {
             let screenFrame = panel.frame
+            panel.hintsView.typed = ""
             panel.hintsView.items = hints.compactMap { hint in
                 let point = ScreenGeometry.appKitPoint(fromAX: hint.anchor.point, primaryScreenHeight: primaryHeight)
                 guard screenFrame.contains(point) else { return nil }
+                let frame = ScreenGeometry.appKitRect(fromAX: hint.elementFrame, primaryScreenHeight: primaryHeight)
+                let origin = screenFrame.origin
                 return HintsView.Item(
                     label: hint.label,
-                    point: CGPoint(x: point.x - screenFrame.minX, y: point.y - screenFrame.minY),
-                    alignment: hint.anchor.alignment
+                    anchor: HintAnchor(point: CGPoint(x: point.x - origin.x, y: point.y - origin.y), alignment: hint.anchor.alignment),
+                    elementFrame: frame.offsetBy(dx: -origin.x, dy: -origin.y)
                 )
             }
             panel.orderFrontRegardless()
@@ -46,6 +52,16 @@ public final class HintOverlay {
         let keyPanel = focus.flatMap { point in panels.first { $0.frame.contains(point) } } ?? panels.first
         keyPanel?.makeKey()
         isVisible = true
+    }
+
+    /// Keeps only hints starting with `typed`, with those characters dimmed.
+    public func filter(typed: String) {
+        panels.forEach { $0.hintsView.typed = typed }
+    }
+
+    /// Swaps which of the overlapping hints is on top.
+    public func rotate() {
+        panels.forEach { $0.hintsView.rotate() }
     }
 
     public func hide() {

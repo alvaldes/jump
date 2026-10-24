@@ -12,6 +12,12 @@ let package = Package(
             name: "JumpKit",
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
+        // Developer tool: measures scan latency against a running app.
+        .executableTarget(
+            name: "jump-bench",
+            dependencies: ["JumpKit"],
+            swiftSettings: [.defaultIsolation(MainActor.self)]
+        ),
         .testTarget(
             name: "JumpKitTests",
             dependencies: ["JumpKit"],

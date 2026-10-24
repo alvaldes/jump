@@ -24,7 +24,7 @@ struct JumpApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("JUMP", systemImage: "keyboard") {
+        MenuBarExtra("JUMP", systemImage: "j.square") {
             MenuContent(permission: permission, hintMode: hintMode)
         }
 

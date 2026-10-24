@@ -11,9 +11,9 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "keyboard")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.secondary)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 96, height: 96)
 
             VStack(spacing: 8) {
                 Text("Navigate your Mac without a mouse")

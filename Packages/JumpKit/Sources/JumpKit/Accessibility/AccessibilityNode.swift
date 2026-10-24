@@ -17,6 +17,14 @@ public protocol AccessibilityNode: Sendable {
 
     /// Children to traverse; `role` lets tables and outlines return only visible rows.
     nonisolated func children(role: String) -> [Self]
+
+    /// For a web area: its visible interactive elements in one query, or `nil`
+    /// when the engine does not support accessibility search predicates.
+    nonisolated func webTargets() -> [Self]?
+}
+
+extension AccessibilityNode {
+    public nonisolated func webTargets() -> [Self]? { nil }
 }
 
 public nonisolated struct NodeAttributes: Sendable, Equatable {

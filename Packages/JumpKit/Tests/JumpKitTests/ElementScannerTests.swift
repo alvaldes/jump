@@ -8,10 +8,12 @@ private nonisolated struct FakeNode: AccessibilityNode {
     let attrs: NodeAttributes?
     var actionNames: [String] = []
     let kids: [FakeNode]
+    var searchResults: [FakeNode]?
 
     func attributes(prefetchingChildren: Bool) -> NodeAttributes? { attrs }
     func actions() -> [String] { actionNames }
     func children(role: String) -> [FakeNode] { kids }
+    func webTargets() -> [FakeNode]? { searchResults }
 }
 
 private func node(
@@ -136,6 +138,34 @@ struct ElementScannerTests {
         let result = ElementScanner().scan(root: window([node("table", role: "AXOutline", frame: CGRect(x: 0, y: 0, width: 200, height: 400), rows)]), deadline: farFuture)
         #expect(result.elements.map(\.node.id) == ["r0.label", "r1.label", "r2.label", "r3", "r4"])
         #expect(result.visitedCount == 2 + 9 + 2)
+    }
+
+    @Test func webAreasUseOneSearchInsteadOfWalkingTheTree() {
+        var webArea = node("web", role: "AXWebArea", frame: CGRect(x: 0, y: 0, width: 800, height: 600), [
+            node("walkedButton", role: "AXButton"),
+        ])
+        webArea.searchResults = [
+            node("link", role: "AXLink", frame: CGRect(x: 10, y: 10, width: 50, height: 14)),
+            node("belowTheFold", role: "AXLink", frame: CGRect(x: 10, y: 900, width: 50, height: 14)),
+            node("field", role: "AXTextField", frame: CGRect(x: 10, y: 40, width: 200, height: 20)),
+        ]
+        #expect(scannedIDs(window([webArea])) == ["link", "field"])
+    }
+
+    @Test func webAreasWithoutSearchSupportAreWalked() {
+        let webArea = node("web", role: "AXWebArea", frame: CGRect(x: 0, y: 0, width: 800, height: 600), [
+            node("button", role: "AXButton"),
+        ])
+        #expect(scannedIDs(window([webArea])) == ["button"])
+    }
+
+    @Test func webImagesAreTargetsOnlyWhenPressable() {
+        var webArea = node("web", role: "AXWebArea", frame: CGRect(x: 0, y: 0, width: 800, height: 600))
+        webArea.searchResults = [
+            node("decorative", role: "AXImage", frame: CGRect(x: 0, y: 0, width: 40, height: 40)),
+            node("imageButton", role: "AXImage", frame: CGRect(x: 50, y: 0, width: 40, height: 40), actions: ["AXPress"]),
+        ]
+        #expect(scannedIDs(window([webArea])) == ["imageButton"])
     }
 
     @Test func neverIncludesWindowsOrScrollAreas() {

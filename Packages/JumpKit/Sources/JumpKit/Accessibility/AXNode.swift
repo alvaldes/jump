@@ -70,6 +70,40 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
         return elements.map { AXNode($0, prefetchesChildren: prefetch) }
     }
 
+    /// Search keys from Vimac: everything a user may want to click or type into.
+    private static let webSearchKeys = [
+        "AXButtonSearchKey", "AXCheckBoxSearchKey", "AXControlSearchKey", "AXGraphicSearchKey",
+        "AXLinkSearchKey", "AXRadioGroupSearchKey", "AXTextFieldSearchKey",
+    ]
+
+    public func webTargets() -> [AXNode]? {
+        let query: [String: Any] = [
+            "AXDirection": "AXDirectionNext",
+            "AXImmediateDescendantsOnly": false,
+            "AXResultsLimit": -1,
+            "AXVisibleOnly": true,
+        ]
+        func search(_ keys: Any) -> (supported: Bool, elements: [AXUIElement]) {
+            var parameters = query
+            parameters["AXSearchKey"] = keys
+            var value: CFTypeRef?
+            let error = AXUIElementCopyParameterizedAttributeValue(
+                element, "AXUIElementsForSearchPredicate" as CFString, parameters as CFDictionary, &value
+            )
+            return (error == .success, value as? [AXUIElement] ?? [])
+        }
+
+        let combined = search(Self.webSearchKeys)
+        guard combined.supported else { return nil }
+        var elements = combined.elements
+        if elements.isEmpty {
+            // Older Chromium only honors a single search key per query.
+            var seen = Set<AXUIElement>()
+            elements = Self.webSearchKeys.flatMap { search($0).elements }.filter { seen.insert($0).inserted }
+        }
+        return elements.map { AXNode($0, prefetchesChildren: false) }
+    }
+
     static func copyAttribute<T>(_ name: String, of element: AXUIElement) -> T? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }

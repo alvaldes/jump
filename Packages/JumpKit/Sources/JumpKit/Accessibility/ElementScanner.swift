@@ -33,7 +33,7 @@ public nonisolated struct ElementScanner: Sendable {
     static let excludedRoles: Set<String> = [
         "AXWindow", "AXScrollArea",  // Vimac
         "AXSplitGroup", "AXSplitter", "AXOutline", "AXTable", "AXList", "AXScrollBar",
-        "AXValueIndicator", "AXToolbar", "AXUnknown", "AXLayoutArea",
+        "AXValueIndicator", "AXToolbar", "AXUnknown", "AXLayoutArea", "AXWebArea",
     ]
 
     /// Standard controls always expose a primary action, so they are targets
@@ -137,6 +137,10 @@ public nonisolated struct ElementScanner: Sendable {
         let childInRow = inRow || attributes.role == "AXRow"
         if !readsContent {
             // A row past a plain sample: its content is assumed to hold no control.
+        } else if attributes.role == "AXWebArea", let targets = node.webTargets() {
+            for target in targets {
+                visitWebTarget(target, clip: childClip, isCancelled: isCancelled, state: &state)
+            }
         } else if attributes.role == "AXTable" || attributes.role == "AXOutline" {
             var readsLaterRows = false
             for (index, row) in node.children(role: attributes.role).enumerated() {
@@ -162,6 +166,30 @@ public nonisolated struct ElementScanner: Sendable {
             state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
         return visibleFrame
+    }
+
+    /// Adds one result of a web-area search. The search keys already define the
+    /// result as interactive, so only images (also matched by the graphic key,
+    /// mostly decorative) must prove they are pressable.
+    private func visitWebTarget<Node: AccessibilityNode>(
+        _ node: Node,
+        clip: CGRect?,
+        isCancelled: () -> Bool,
+        state: inout State<Node>
+    ) {
+        guard !state.isStopped else { return }
+        guard state.visitedCount < maxElements, ContinuousClock.now < state.deadline, !isCancelled() else {
+            state.isStopped = true
+            return
+        }
+        state.visitedCount += 1
+        guard let attributes = node.attributes(prefetchingChildren: false),
+              attributes.frame.width > 0, attributes.frame.height > 0
+        else { return }
+        if let clip, !clip.intersects(attributes.frame) { return }
+        if attributes.role == "AXImage", !node.actions().contains("AXPress") { return }
+        let frame = clip.map { $0.intersection(attributes.frame) } ?? attributes.frame
+        state.elements.append(ScannedElement(node: node, role: attributes.role, frame: frame))
     }
 
     /// Whether a sampled row can represent its own content, so later rows of

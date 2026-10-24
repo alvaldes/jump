@@ -11,10 +11,12 @@ Branch: `feat/foundation` · Delivery: ask-on-risk · Test runner: `xcodebuild t
 
 ## Tasks
 
-- T1 · S1, S3 · inline · repo scaffold, XcodeGen project, signing config, LICENSE, README · pending
-- T2 · S2 · inline · menu bar app + AccessibilityPermission with tests · pending
+- [x] T1 · S1, S3 · inline · repo scaffold, XcodeGen project, signing config, LICENSE, README · 6b02d63 (docs), f0bdaa3 (project) · CI deferred
+- [x] T2 · S2 · inline · menu bar app + AccessibilityPermission with tests · f0bdaa3 · RED (empty target) → GREEN 6/6 · review assess: medium, under_budget (pending in slice)
+- [ ] T3 · S2, S3 · manual · user verifies onboarding window + permission grant with a stable signature · pending (needs Signing.local.xcconfig)
 
 ## Log
 
 - L1 (2026-10-24): "listo, ya instalé Xcode" — after decisions: macOS 26 only, shortcut Cmd-Shift-Space, XcodeGen, bundle id com.alvaldes.jump, no paid Apple Developer account yet. Earlier request: "Dime qué más, qué otras preguntas quedan para responderlas y ya empecar".
 - L2: Environment: Xcode 27.1 (macOS 27 SDK), xcodegen 2.46.0, 0 codesigning identities.
+- L3: Built with xcodebuild (BUILD SUCCEEDED, no warnings); bundle LSUIElement=true, min 26.0, adhoc signature. App launched and stayed running; onboarding UI not visually verified (screenshot captured another fullscreen app). Core logic split into Packages/JumpKit so `swift test` runs without launching the app. Next: user sets up signing and verifies T3; then roadmap step 2 (global shortcut + AX scanner).

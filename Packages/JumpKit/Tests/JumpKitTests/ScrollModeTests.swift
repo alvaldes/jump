@@ -102,3 +102,20 @@ struct ScrollAreaFinderTests {
         #expect(ids(root) == ["page", "window"])
     }
 }
+
+@Suite("Scroller")
+struct ScrollerTests {
+    @Test func wheelDeltasFollowTheContentDirection() {
+        // Positive wheel values move content down, so "scroll down" is negative.
+        #expect(Scroller.wheelDelta(.down, distance: 40) == ScrollDelta(horizontal: 0, vertical: -40))
+        #expect(Scroller.wheelDelta(.up, distance: 40) == ScrollDelta(horizontal: 0, vertical: 40))
+        #expect(Scroller.wheelDelta(.right, distance: 40) == ScrollDelta(horizontal: -40, vertical: 0))
+        #expect(Scroller.wheelDelta(.left, distance: 40) == ScrollDelta(horizontal: 40, vertical: 0))
+    }
+
+    @Test func halfPageIsHalfTheAreaInTheScrollAxis() {
+        let area = CGRect(x: 0, y: 0, width: 600, height: 900)
+        #expect(Scroller.halfPage(.down, of: area) == 450)
+        #expect(Scroller.halfPage(.left, of: area) == 300)
+    }
+}

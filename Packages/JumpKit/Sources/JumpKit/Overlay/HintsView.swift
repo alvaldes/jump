@@ -20,6 +20,11 @@ final class HintsView: NSView {
         didSet { if typed != oldValue { needsDisplay = true } }
     }
 
+    /// Area outlined in scroll mode, in this view's coordinates.
+    var outline: CGRect? {
+        didSet { if outline != oldValue { needsDisplay = true } }
+    }
+
     /// Changes which of the overlapping hints gets its preferred place.
     private var rotation = 0
 
@@ -66,6 +71,9 @@ final class HintsView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        if let outline {
+            drawOutline(outline)
+        }
         var visible = items.filter { $0.label.hasPrefix(typed) }
         guard !visible.isEmpty else { return }
         // Earlier hints win the free spots and later ones are drawn on top, so
@@ -85,6 +93,16 @@ final class HintsView: NSView {
             guard pill.intersects(dirtyRect) else { continue }
             drawPill(pill, text: text)
         }
+    }
+
+    private func drawOutline(_ frame: CGRect) {
+        let rect = frame.insetBy(dx: 2, dy: 2)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
+        NSColor.controlAccentColor.withAlphaComponent(0.06).setFill()
+        path.fill()
+        NSColor.controlAccentColor.withAlphaComponent(0.9).setStroke()
+        path.lineWidth = 3
+        path.stroke()
     }
 
     private func attributedLabel(for item: Item) -> NSAttributedString {

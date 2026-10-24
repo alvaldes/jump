@@ -54,6 +54,7 @@ public final class HintOverlay {
         for panel in panels {
             let screenFrame = panel.frame
             panel.hintsView.typed = ""
+            panel.hintsView.outline = nil
             panel.hintsView.items = hints.compactMap { hint in
                 let point = ScreenGeometry.appKitPoint(fromAX: hint.anchor.point, primaryScreenHeight: primaryHeight)
                 guard screenFrame.contains(point) else { return nil }
@@ -76,6 +77,27 @@ public final class HintOverlay {
         isVisible = true
     }
 
+    /// Outlines one area (AX coordinates) for scroll mode and makes its panel
+    /// key, so keystrokes reach JUMP without activating it.
+    public func showOutline(_ frame: CGRect) {
+        let screens = NSScreen.screens
+        guard let primary = screens.first else { return }
+        syncPanels(with: screens)
+        let appKitFrame = ScreenGeometry.appKitRect(fromAX: frame, primaryScreenHeight: primary.frame.height)
+
+        for panel in panels {
+            panel.hintsView.items = []
+            panel.hintsView.outline = panel.frame.intersects(appKitFrame)
+                ? appKitFrame.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
+                : nil
+            panel.orderFrontRegardless()
+            panel.displayIfNeeded()
+        }
+        let center = CGPoint(x: appKitFrame.midX, y: appKitFrame.midY)
+        (panels.first { $0.frame.contains(center) } ?? panels.first)?.makeKey()
+        isVisible = true
+    }
+
     /// Keeps only hints starting with `typed`, with those characters dimmed.
     public func filter(typed: String) {
         panels.forEach { $0.hintsView.typed = typed }
@@ -89,6 +111,7 @@ public final class HintOverlay {
     public func hide() {
         for panel in panels {
             panel.hintsView.items = []
+            panel.hintsView.outline = nil
             panel.orderOut(nil)
         }
         isVisible = false

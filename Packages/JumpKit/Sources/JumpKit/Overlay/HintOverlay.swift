@@ -20,6 +20,16 @@ public final class HintOverlay {
 
     public private(set) var isVisible = false
 
+    /// Whether one of the overlay panels currently receives the keyboard.
+    public var hasKeyPanel: Bool {
+        panels.contains { $0.isKeyWindow }
+    }
+
+    public func isOverlayWindow(_ object: Any?) -> Bool {
+        guard let window = object as? NSWindow else { return false }
+        return panels.contains { $0 === window }
+    }
+
     public init() {}
 
     /// Creates the panels and warms up text rendering ahead of the first

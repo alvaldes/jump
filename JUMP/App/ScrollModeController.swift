@@ -22,6 +22,7 @@ final class ScrollModeController {
     private var heldKeyCode: UInt16?
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
+    private var keyLossObserver: (any NSObjectProtocol)?
 
     private(set) var isActive = false
 
@@ -169,9 +170,37 @@ final class ScrollModeController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.deactivate() }
         }
+        observeKeyLoss()
+    }
+
+    /// A click on the target window takes the keyboard away without an app
+    /// switch. Key-up events would then never arrive and a held direction
+    /// would scroll forever, so scroll mode exits instead.
+    private func observeKeyLoss() {
+        keyLossObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let window = notification.object as? NSWindow
+            MainActor.assumeIsolated {
+                guard let self, self.isActive, self.overlay.isOverlayWindow(window) else { return }
+                // Tab across displays moves the keyboard to another overlay panel;
+                // only leave when no overlay panel has it after this turn.
+                DispatchQueue.main.async {
+                    guard self.isActive, !self.overlay.hasKeyPanel else { return }
+                    self.logger.info("Scroll mode lost the keyboard; leaving it")
+                    self.deactivate()
+                }
+            }
+        }
     }
 
     private func stopListening() {
+        if let keyLossObserver {
+            NotificationCenter.default.removeObserver(keyLossObserver)
+        }
+        keyLossObserver = nil
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }

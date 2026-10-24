@@ -113,6 +113,24 @@ else {
 }
 let window = AXNode(windowValue as! AXUIElement)
 
+if arguments.contains("--scroll-areas") {
+    var times: [Duration] = []
+    var found: [ScrollArea<TimedNode>] = []
+    for run in 0..<runs {
+        if !warm, run > 0 { Thread.sleep(forTimeInterval: 1) }
+        stats.reset()
+        let start = ContinuousClock.now
+        found = ScrollAreaFinder().find(in: TimedNode(base: window), deadline: .now.advanced(by: .seconds(5)))
+        times.append(ContinuousClock.now - start)
+    }
+    let s = times.sorted()
+    print("\(arguments[1]): \(found.count) scroll areas (window included)")
+    for area in found { print("  area \(area.frame.integral)") }
+    print("find over \(runs) runs: min \(String(format: "%.1f", Double(s.first! / .microseconds(1)) / 1000)) ms, median \(String(format: "%.1f", Double(s[s.count / 2] / .microseconds(1)) / 1000)) ms")
+    print(stats.report())
+    exit(0)
+}
+
 var durations: [Duration] = []
 var lastResult: ScanResult<TimedNode>?
 for run in 0..<runs {

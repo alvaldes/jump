@@ -46,6 +46,15 @@ final class HintsView: NSView {
         }()
     }
 
+    /// Draws one label off screen so fonts and glyph caches are loaded.
+    static func warmUpTextRendering() {
+        let view = HintsView(frame: CGRect(x: 0, y: 0, width: 64, height: 32))
+        view.items = [Item(label: "JU", anchor: HintAnchor(point: CGPoint(x: 32, y: 16), alignment: .center),
+                           elementFrame: view.bounds)]
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true

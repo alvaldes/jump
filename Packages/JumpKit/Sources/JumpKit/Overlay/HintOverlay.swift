@@ -22,6 +22,23 @@ public final class HintOverlay {
 
     public init() {}
 
+    /// Creates the panels and warms up text rendering ahead of the first
+    /// hotkey press, which otherwise pays ~45 ms for it. Call at launch and
+    /// whenever the display arrangement changes.
+    public func prepare() {
+        syncPanels(with: NSScreen.screens)
+        HintsView.warmUpTextRendering()
+        guard !isVisible else { return }
+        // The window server allocates a panel's backing store the first time it
+        // is shown. Showing the empty, transparent, click-through panels once
+        // now moves that cost out of the first hotkey press.
+        for panel in panels {
+            panel.orderFrontRegardless()
+            panel.displayIfNeeded()
+            panel.orderOut(nil)
+        }
+    }
+
     /// Shows `hints` and makes the panel under `focusPoint` (AX coordinates) key,
     /// so keystrokes reach JUMP without activating it.
     public func show(_ hints: [HintPresentation], focusPoint: CGPoint?) {
@@ -47,6 +64,9 @@ public final class HintOverlay {
                 )
             }
             panel.orderFrontRegardless()
+            // Draw now rather than on the next display cycle, so the hints are
+            // on screen when `show` returns (and latency measurements are honest).
+            panel.displayIfNeeded()
         }
 
         let keyPanel = focus.flatMap { point in panels.first { $0.frame.contains(point) } } ?? panels.first

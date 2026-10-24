@@ -17,6 +17,7 @@ final class HintModeController {
     private var scanTask: Task<Void, Never>?
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
+    private var screenObserver: (any NSObjectProtocol)?
     private var hints: [Hint<AXNode>] = []
     private var input = HintInput(labels: [])
 
@@ -28,6 +29,17 @@ final class HintModeController {
 
     init(permission: AccessibilityPermission) {
         self.permission = permission
+        overlay.prepare()
+        if permission.isTrusted {
+            Task { await FocusedWindowScanner.warmUp() }
+        }
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.overlay.prepare() }
+        }
     }
 
     /// Bound to the activation hotkey.
@@ -54,15 +66,16 @@ final class HintModeController {
 
         let appName = app.localizedName ?? "Unknown app"
         let pid = app.processIdentifier
+        // Latency budget (spec §3.9) is measured from the hotkey to hints on screen.
+        let start = ContinuousClock.now
         scanTask = Task {
-            let start = ContinuousClock.now
             let outcome = await Result { try await FocusedWindowScanner.scan(pid: pid) }
             // Dismissed while scanning; nothing to show.
             guard !Task.isCancelled else { return }
             scanTask = nil
             switch outcome {
             case .success(let result):
-                present(result, appName: appName, elapsed: ContinuousClock.now - start)
+                present(result, appName: appName, start: start)
             case .failure:
                 lastSummary = "\(appName): no focused window"
                 logger.notice("Scan of \(appName, privacy: .public) found no focused window")
@@ -70,24 +83,27 @@ final class HintModeController {
         }
     }
 
-    private func present(_ result: ScanResult<AXNode>, appName: String, elapsed: Duration) {
+    private func present(_ result: ScanResult<AXNode>, appName: String, start: ContinuousClock.Instant) {
+        let scanned = ContinuousClock.now
         let hints = HintAssigner.assign(result.elements, characters: HintLabels.defaultCharacters)
-        let milliseconds = Int(elapsed / .milliseconds(1))
-        let truncated = result.isTruncated ? " (truncated)" : ""
-        lastSummary = "\(appName): \(hints.count) hints in \(milliseconds) ms\(truncated)"
-        logger.info("""
-            Scanned \(appName, privacy: .public): \(hints.count) hints, \
-            \(result.visitedCount) nodes visited, \(milliseconds) ms, truncated: \(result.isTruncated)
-            """)
+        if let first = hints.first {
+            self.hints = hints
+            input = HintInput(labels: hints.map(\.label))
+            overlay.show(
+                hints.map { HintPresentation(label: $0.label, anchor: $0.anchor, elementFrame: $0.element.frame) },
+                focusPoint: CGPoint(x: first.element.frame.midX, y: first.element.frame.midY)
+            )
+            startListening()
+        }
 
-        guard let first = hints.first else { return }
-        self.hints = hints
-        input = HintInput(labels: hints.map(\.label))
-        overlay.show(
-            hints.map { HintPresentation(label: $0.label, anchor: $0.anchor, elementFrame: $0.element.frame) },
-            focusPoint: CGPoint(x: first.element.frame.midX, y: first.element.frame.midY)
-        )
-        startListening()
+        let totalMs = Int((ContinuousClock.now - start) / .milliseconds(1))
+        let scanMs = Int((scanned - start) / .milliseconds(1))
+        let truncated = result.isTruncated ? " (truncated)" : ""
+        lastSummary = "\(appName): \(hints.count) hints in \(totalMs) ms\(truncated)"
+        logger.info("""
+            Hints for \(appName, privacy: .public): \(hints.count) hints, \(result.visitedCount) nodes, \
+            scan \(scanMs) ms, on screen after \(totalMs) ms, truncated: \(result.isTruncated)
+            """)
     }
 
     private func dismiss() {

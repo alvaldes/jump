@@ -13,7 +13,7 @@ Branch: `feat/foundation` · Delivery: ask-on-risk · Test runner: `xcodebuild t
 
 - [x] T1 · S1, S3 · inline · repo scaffold, XcodeGen project, signing config, LICENSE, README · 6b02d63 (docs), f0bdaa3 (project) · CI deferred
 - [x] T2 · S2 · inline · menu bar app + AccessibilityPermission with tests · f0bdaa3 · RED (empty target) → GREEN 6/6 · review assess: medium, under_budget (pending in slice)
-- [ ] T3 · S2, S3 · manual · user verifies onboarding window + permission grant with a stable signature · pending (needs Signing.local.xcconfig)
+- [x] T3 · S2, S3 · manual · user verified: window closed on grant · c983bc1
 
 ## Log
 
@@ -22,3 +22,4 @@ Branch: `feat/foundation` · Delivery: ask-on-risk · Test runner: `xcodebuild t
 - L3: Built with xcodebuild (BUILD SUCCEEDED, no warnings); bundle LSUIElement=true, min 26.0, adhoc signature. App launched and stayed running; onboarding UI not visually verified (screenshot captured another fullscreen app). Core logic split into Packages/JumpKit so `swift test` runs without launching the app. Next: user sets up signing and verifies T3; then roadmap step 2 (global shortcut + AX scanner).
 - L4: Signing set up: Config/Signing.local.xcconfig (team 7UDSYQKV9H, git-ignored); `xcodebuild -allowProvisioningUpdates` created the Apple Development certificate. Designated requirement is now certificate-based, so TCC permission survives rebuilds. T3 awaiting user test.
 - L5 (2026-10-24): user reported "el permiso se lo doy pero la ventana no se cierra y sigue apareciendo. Y en el menu aun no aparece access granted". Reproduced: fresh signed launch still showed onboarding (AXIsProcessTrusted false). Causes: (a) stale TCC entries — `tccutil reset` removed two JUMP entries (one from an earlier signature); (b) bug: NSApplication suspends distributed notifications for inactive apps, so the grant was never observed. Fix: poll every 1s only while untrusted + `.deliverImmediately` observer for revocations. RED→GREEN 7/7.
+- L6 (2026-10-24): user: "funciona, la ventana se cerró sola. sigamos con el paso 2". Feature closed.

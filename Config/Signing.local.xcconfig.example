@@ -1,0 +1,6 @@
+// Copy to Config/Signing.local.xcconfig (git-ignored) and set your team ID.
+// A free Apple ID works: Xcode > Settings > Accounts > add your Apple ID.
+// Find the team ID in Keychain Access (certificate "Apple Development: ...",
+// Organizational Unit) or in Xcode's Signing & Capabilities tab.
+CODE_SIGN_IDENTITY = Apple Development
+DEVELOPMENT_TEAM = YOUR_TEAM_ID

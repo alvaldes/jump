@@ -1,0 +1,52 @@
+name: JUMP
+
+options:
+  bundleIdPrefix: com.alvaldes
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  JumpKit:
+    path: Packages/JumpKit
+
+targets:
+  JUMP:
+    type: application
+    platform: macOS
+    sources:
+      - JUMP
+    dependencies:
+      - package: JumpKit
+    info:
+      path: JUMP/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: JUMP
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "Copyright © 2026 JUMP contributors. GPL-3.0."
+    settings:
+      base:
+        PRODUCT_NAME: JUMP
+        PRODUCT_BUNDLE_IDENTIFIER: com.alvaldes.jump
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_STRICT_CONCURRENCY: complete
+
+schemes:
+  JUMP:
+    build:
+      targets:
+        JUMP: all
+    run:
+      config: Debug

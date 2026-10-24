@@ -19,6 +19,9 @@ settings:
 packages:
   JumpKit:
     path: Packages/JumpKit
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    exactVersion: 3.1.0
 
 targets:
   JUMP:
@@ -28,6 +31,7 @@ targets:
       - JUMP
     dependencies:
       - package: JumpKit
+      - package: KeyboardShortcuts
     info:
       path: JUMP/Resources/Info.plist
       properties:

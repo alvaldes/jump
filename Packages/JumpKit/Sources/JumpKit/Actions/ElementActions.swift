@@ -23,6 +23,10 @@ public nonisolated enum ElementActions {
 
     /// Where synthesized clicks land, in global CG coordinates (same as AX).
     static func clickPoint(role: String, frame: CGRect) -> CGPoint {
+        if role == "AXRow" {
+            // Same spot as the row's hint, on its label.
+            return HintAnchor(role: role, frame: frame).point
+        }
         guard role == "AXLink" else { return CGPoint(x: frame.midX, y: frame.midY) }
         // Match the hint's bottom-left placement: multi-line links have no text at their center.
         let inset = CGSize(width: min(5, frame.width / 2), height: min(5, frame.height / 2))

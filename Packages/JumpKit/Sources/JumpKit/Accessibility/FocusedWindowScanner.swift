@@ -6,6 +6,14 @@ public enum FocusedWindowScanError: Error, Equatable {
 
 /// Scans the focused window of an app, off the main thread.
 public nonisolated enum FocusedWindowScanner {
+    /// The first accessibility call of the process sets up its connection to
+    /// the AX system (~15-20 ms). Doing a cheap one at launch moves that cost
+    /// out of the first hotkey press.
+    @concurrent
+    public static func warmUp() async {
+        let _: AXUIElement? = AXNode.copyAttribute("AXFocusedApplication", of: AXUIElementCreateSystemWide())
+    }
+
     @concurrent
     public static func scan(
         pid: pid_t,

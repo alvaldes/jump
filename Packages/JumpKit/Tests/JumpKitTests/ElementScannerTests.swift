@@ -6,9 +6,11 @@ import Testing
 private nonisolated struct FakeNode: AccessibilityNode {
     let id: String
     let attrs: NodeAttributes?
+    var actionNames: [String] = []
     let kids: [FakeNode]
 
-    func attributes() -> NodeAttributes? { attrs }
+    func attributes(prefetchingChildren: Bool) -> NodeAttributes? { attrs }
+    func actions() -> [String] { actionNames }
     func children(role: String) -> [FakeNode] { kids }
 }
 
@@ -19,7 +21,7 @@ private func node(
     actions: [String] = [],
     _ children: [FakeNode] = []
 ) -> FakeNode {
-    FakeNode(id: id, attrs: NodeAttributes(role: role, frame: frame, actions: actions), kids: children)
+    FakeNode(id: id, attrs: NodeAttributes(role: role, frame: frame), actionNames: actions, kids: children)
 }
 
 private func window(_ children: [FakeNode]) -> FakeNode {
@@ -47,6 +49,93 @@ struct ElementScannerTests {
             node("menuOnly", actions: ["AXShowMenu", "AXScrollToVisible", "AXShowDefaultUI", "AXShowAlternateUI"]),
         ])
         #expect(scannedIDs(root).isEmpty)
+    }
+
+    @Test func standardControlsAreTargetsWithoutAskingForActions() {
+        // Buttons, checkboxes, text fields... always have an action; skipping the
+        // query saves one IPC round-trip per control.
+        let root = window([node("button", role: "AXButton", actions: [])])
+        #expect(scannedIDs(root) == ["button"])
+    }
+
+    @Test func pureContainersAreNeverTargets() {
+        let root = window([node("toolbar", role: "AXToolbar", actions: ["AXPress"])])
+        #expect(scannedIDs(root).isEmpty)
+    }
+
+    @Test func customNamedActionsDoNotMakeATarget() {
+        // e.g. toolbar items expose "Name:Move next" to reorder the toolbar.
+        let root = window([node("toolbarItem", role: "AXGroup", actions: ["Name:Move next\nTarget:0x0\nSelector:(null)"])])
+        #expect(scannedIDs(root).isEmpty)
+    }
+
+    @Test func listRowsAreOneTargetInsteadOfTheirCells() {
+        // Finder rows: an actionable cell plus a name field gave two hints per row.
+        let root = window([
+            node("outline", role: "AXOutline", [
+                node("row", role: "AXRow", [
+                    node("cell", role: "AXCell", actions: ["AXOpen"], [
+                        node("icon", role: "AXImage"),
+                        node("name", role: "AXTextField", actions: ["AXConfirm"]),
+                    ]),
+                ]),
+            ]),
+        ])
+        #expect(scannedIDs(root) == ["row"])
+    }
+
+    @Test func controlsInsideRowsStayTargets() {
+        let root = window([
+            node("table", role: "AXTable", [
+                node("row", role: "AXRow", [
+                    node("cell", role: "AXCell", [node("toggle", role: "AXCheckBox")]),
+                ]),
+            ]),
+        ])
+        #expect(scannedIDs(root) == ["toggle"])
+    }
+
+    private func plainRow(_ id: String, y: CGFloat) -> FakeNode {
+        node(id, role: "AXRow", frame: CGRect(x: 0, y: y, width: 400, height: 20), [
+            node("\(id).cell", role: "AXCell", frame: CGRect(x: 0, y: y, width: 400, height: 20), [
+                node("\(id).text", role: "AXStaticText", frame: CGRect(x: 0, y: y, width: 100, height: 20)),
+            ]),
+        ])
+    }
+
+    @Test func rowsAfterAPlainSampleAreTargetsWithoutReadingTheirContent() {
+        let rows = (0..<5).map { plainRow("r\($0)", y: CGFloat($0) * 20) }
+        let result = ElementScanner().scan(root: window([node("table", role: "AXTable", rows)]), deadline: farFuture)
+        #expect(result.elements.map(\.node.id) == ["r0", "r1", "r2", "r3", "r4"])
+        // window + table + 3 sampled rows x 3 nodes + 2 rows read alone.
+        #expect(result.visitedCount == 2 + 9 + 2)
+    }
+
+    @Test func aControlInTheSampleMakesEveryRowBeReadInFull() {
+        var rows = (0..<5).map { plainRow("r\($0)", y: CGFloat($0) * 20) }
+        rows[1] = node("r1", role: "AXRow", frame: CGRect(x: 0, y: 20, width: 400, height: 20), [
+            node("toggle1", role: "AXCheckBox", frame: CGRect(x: 0, y: 20, width: 20, height: 20)),
+        ])
+        rows[4] = node("r4", role: "AXRow", frame: CGRect(x: 0, y: 80, width: 400, height: 20), [
+            node("toggle4", role: "AXCheckBox", frame: CGRect(x: 0, y: 80, width: 20, height: 20)),
+        ])
+        let ids = scannedIDs(window([node("table", role: "AXTable", rows)]))
+        #expect(ids == ["r0", "toggle1", "r2", "r3", "toggle4"])
+    }
+
+    @Test func rowsLabelledByALeadingButtonStandInForIt() {
+        // System Settings sidebar: every row is row > cell > button (the item's label).
+        let rows = (0..<5).map { index -> FakeNode in
+            let y = CGFloat(index) * 30
+            return node("r\(index)", role: "AXRow", frame: CGRect(x: 0, y: y, width: 200, height: 28), [
+                node("r\(index).cell", role: "AXCell", frame: CGRect(x: 0, y: y, width: 200, height: 28), [
+                    node("r\(index).label", role: "AXButton", frame: CGRect(x: 12, y: y + 6, width: 60, height: 16)),
+                ]),
+            ])
+        }
+        let result = ElementScanner().scan(root: window([node("table", role: "AXOutline", frame: CGRect(x: 0, y: 0, width: 200, height: 400), rows)]), deadline: farFuture)
+        #expect(result.elements.map(\.node.id) == ["r0.label", "r1.label", "r2.label", "r3", "r4"])
+        #expect(result.visitedCount == 2 + 9 + 2)
     }
 
     @Test func neverIncludesWindowsOrScrollAreas() {

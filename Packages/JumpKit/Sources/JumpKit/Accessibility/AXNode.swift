@@ -8,42 +8,66 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
     // AXUIElement is an immutable CF handle; the AX API is safe to call from any thread.
     public let element: AXUIElement
 
+    /// Children delivered with the frame in the same round-trip, so traversal
+    /// costs one IPC per node instead of two.
+    private let prefetched = PrefetchedChildren()
+
     /// Upper bound for a single AX request, so a hung app cannot stall a scan
     /// (Vimac used 1 s globally).
     static let messagingTimeout: Float = 0.25
 
+    /// Whether `attributes()` also fetches the children. Off for children of
+    /// scroll areas: those are often tables, whose full row list can be
+    /// thousands of elements when only the visible rows are needed.
+    private let prefetchesChildren: Bool
+
     public init(_ element: AXUIElement) {
+        self.init(element, prefetchesChildren: true)
+    }
+
+    private init(_ element: AXUIElement, prefetchesChildren: Bool) {
         self.element = element
+        self.prefetchesChildren = prefetchesChildren
         // The timeout applies only to this exact reference, never to the
         // children copied from it, so every node sets its own. Local call, no IPC.
         AXUIElementSetMessagingTimeout(element, Self.messagingTimeout)
     }
 
     private static let frameAttributes = ["AXRole", "AXPosition", "AXSize"]
+    private static let batchedAttributes = frameAttributes + ["AXChildren"]
 
-    public func attributes() -> NodeAttributes? {
-        // One IPC round-trip for role, position and size.
+    public func attributes(prefetchingChildren: Bool) -> NodeAttributes? {
+        // One IPC round-trip for role, position, size and children.
+        let prefetch = prefetchingChildren && prefetchesChildren
+        let names = prefetch ? Self.batchedAttributes : Self.frameAttributes
         var values: CFArray?
-        guard AXUIElementCopyMultipleAttributeValues(element, Self.frameAttributes as CFArray, [], &values) == .success,
-              let values = values as? [AnyObject], values.count == 3,
+        guard AXUIElementCopyMultipleAttributeValues(element, names as CFArray, [], &values) == .success,
+              let values = values as? [AnyObject], values.count == names.count,
               let role = values[0] as? String,
               let origin = Self.point(values[1]),
               let size = Self.size(values[2])
         else { return nil }
+        if prefetch {
+            prefetched.elements = values[3] as? [AXUIElement] ?? []
+        }
+        return NodeAttributes(role: role, frame: CGRect(origin: origin, size: size))
+    }
 
-        var actionNames: CFArray?
-        let actions = AXUIElementCopyActionNames(element, &actionNames) == .success
-            ? (actionNames as? [String] ?? [])
-            : []
-
-        return NodeAttributes(role: role, frame: CGRect(origin: origin, size: size), actions: actions)
+    public func actions() -> [String] {
+        var names: CFArray?
+        guard AXUIElementCopyActionNames(element, &names) == .success else { return [] }
+        return names as? [String] ?? []
     }
 
     public func children(role: String) -> [AXNode] {
         // Tables and outlines can hold thousands of rows; only visible ones matter.
-        let attribute = (role == "AXTable" || role == "AXOutline") ? "AXVisibleRows" : "AXChildren"
-        let elements: [AXUIElement]? = Self.copyAttribute(attribute, of: element)
-        return elements?.map(AXNode.init) ?? []
+        if role == "AXTable" || role == "AXOutline" {
+            let rows: [AXUIElement]? = Self.copyAttribute("AXVisibleRows", of: element)
+            return rows?.map(AXNode.init) ?? []
+        }
+        let elements = prefetched.elements ?? Self.copyAttribute("AXChildren", of: element) ?? []
+        let prefetch = role != "AXScrollArea"
+        return elements.map { AXNode($0, prefetchesChildren: prefetch) }
     }
 
     static func copyAttribute<T>(_ name: String, of element: AXUIElement) -> T? {
@@ -65,4 +89,10 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
         var size = CGSize.zero
         return AXValueGetValue(object as! AXValue, .cgSize, &size) ? size : nil
     }
+}
+
+/// Written once by `attributes()` and read by `children(role:)` on the same
+/// scan task, so it needs no locking.
+private nonisolated final class PrefetchedChildren: @unchecked Sendable {
+    nonisolated(unsafe) var elements: [AXUIElement]?
 }

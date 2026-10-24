@@ -29,7 +29,32 @@ public nonisolated struct ElementScanner: Sendable {
     ]
 
     /// Containers that are never hinted themselves, only their content.
-    static let excludedRoles: Set<String> = ["AXWindow", "AXScrollArea"]
+    /// Their actions are not even queried, saving an IPC round-trip each.
+    static let excludedRoles: Set<String> = [
+        "AXWindow", "AXScrollArea",  // Vimac
+        "AXSplitGroup", "AXSplitter", "AXOutline", "AXTable", "AXList", "AXScrollBar",
+        "AXValueIndicator", "AXToolbar", "AXUnknown", "AXLayoutArea",
+    ]
+
+    /// Standard controls always expose a primary action, so they are targets
+    /// without querying their actions (one IPC round-trip saved per control).
+    static let actionableRoles: Set<String> = [
+        "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton",
+        "AXDisclosureTriangle", "AXLink", "AXTextField", "AXTextArea", "AXComboBox",
+        "AXSlider", "AXIncrementor", "AXColorWell",
+    ]
+
+    /// Inside a list row only these stay separate targets; cells, labels and
+    /// icons are covered by the row itself (one hint per row, no IPC for them).
+    static let rowControlRoles: Set<String> = actionableRoles.subtracting(["AXTextField", "AXTextArea"])
+
+    /// Rows of one table share their structure: when this many rows contain no
+    /// control, the remaining rows are hinted without reading their content.
+    static let rowSampleSize = 3
+
+    /// Accessibility custom actions ("Name:…") are secondary commands, like
+    /// reordering a toolbar, not a reason to hint an element.
+    private static let customActionPrefix = "Name:"
 
     public var maxDepth: Int
     public var maxElements: Int
@@ -39,9 +64,14 @@ public nonisolated struct ElementScanner: Sendable {
         self.maxElements = maxElements
     }
 
-    public func scan<Node: AccessibilityNode>(root: Node, deadline: ContinuousClock.Instant) -> ScanResult<Node> {
+    /// - Parameter isCancelled: Polled between nodes; defaults to the current task's cancellation.
+    public func scan<Node: AccessibilityNode>(
+        root: Node,
+        deadline: ContinuousClock.Instant,
+        isCancelled: () -> Bool = { Task.isCancelled }
+    ) -> ScanResult<Node> {
         var state = State<Node>(deadline: deadline)
-        visit(root, clip: nil, depth: 0, state: &state)
+        visit(root, clip: nil, depth: 0, inRow: false, isCancelled: isCancelled, state: &state)
         return ScanResult(
             elements: state.elements,
             visitedCount: state.visitedCount,
@@ -59,28 +89,33 @@ public nonisolated struct ElementScanner: Sendable {
         var skippedBranches = 0
     }
 
+    /// Returns the node's visible frame, or `nil` when it was not scanned.
+    @discardableResult
     private func visit<Node: AccessibilityNode>(
         _ node: Node,
         clip: CGRect?,
         depth: Int,
+        inRow: Bool,
+        readsContent: Bool = true,
+        isCancelled: () -> Bool,
         state: inout State<Node>
-    ) {
-        guard !state.isStopped else { return }
+    ) -> CGRect? {
+        guard !state.isStopped else { return nil }
         guard state.visitedCount < maxElements,
               ContinuousClock.now < state.deadline,
-              !Task.isCancelled
+              !isCancelled()
         else {
             state.isStopped = true
-            return
+            return nil
         }
         // Only this branch is too deep; its siblings are still scanned.
         guard depth <= maxDepth else {
             state.skippedBranches += 1
-            return
+            return nil
         }
 
         state.visitedCount += 1
-        guard let attributes = node.attributes() else { return }
+        guard let attributes = node.attributes(prefetchingChildren: readsContent) else { return nil }
 
         // Zero-size wrappers (common for AXGroup) are transparent: they neither
         // clip nor hide their children, and are not targets themselves.
@@ -88,18 +123,35 @@ public nonisolated struct ElementScanner: Sendable {
         let hasArea = frame.width > 0 && frame.height > 0
 
         // Prune elements (and their subtrees) entirely outside their ancestors.
-        if hasArea, let clip, !clip.intersects(frame) { return }
+        if hasArea, let clip, !clip.intersects(frame) { return nil }
         let visibleFrame = hasArea ? (clip.map { $0.intersection(frame) } ?? frame) : nil
 
-        let isTarget = visibleFrame != nil && isActionable(attributes)
+        let isTarget = visibleFrame != nil && isActionable(node, role: attributes.role, inRow: inRow)
         if isTarget, let visibleFrame {
             state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
 
         let countBeforeChildren = state.elements.count
         let skippedBeforeChildren = state.skippedBranches
-        for child in node.children(role: attributes.role) {
-            visit(child, clip: visibleFrame ?? clip, depth: depth + 1, state: &state)
+        let childClip = visibleFrame ?? clip
+        let childInRow = inRow || attributes.role == "AXRow"
+        if !readsContent {
+            // A row past a plain sample: its content is assumed to hold no control.
+        } else if attributes.role == "AXTable" || attributes.role == "AXOutline" {
+            var readsLaterRows = false
+            for (index, row) in node.children(role: attributes.role).enumerated() {
+                let countBeforeRow = state.elements.count
+                let isSample = index < Self.rowSampleSize
+                let rowFrame = visit(row, clip: childClip, depth: depth + 1, inRow: childInRow,
+                                     readsContent: isSample || readsLaterRows, isCancelled: isCancelled, state: &state)
+                if isSample, !Self.rowStandsIn(for: state.elements[countBeforeRow...], rowFrame: rowFrame) {
+                    readsLaterRows = true
+                }
+            }
+        } else {
+            for child in node.children(role: attributes.role) {
+                visit(child, clip: childClip, depth: depth + 1, inRow: childInRow, isCancelled: isCancelled, state: &state)
+            }
         }
 
         // A row with nothing actionable inside is itself the target (e.g. a list item).
@@ -109,10 +161,30 @@ public nonisolated struct ElementScanner: Sendable {
            state.elements.count == countBeforeChildren, let visibleFrame {
             state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
+        return visibleFrame
     }
 
-    private func isActionable(_ attributes: NodeAttributes) -> Bool {
-        guard !Self.excludedRoles.contains(attributes.role) else { return false }
-        return attributes.actions.contains { !Self.ignoredActions.contains($0) }
+    /// Whether a sampled row can represent its own content, so later rows of
+    /// the same table need not be read: it holds no control, or only the
+    /// button that labels it at its leading edge (System Settings sidebar).
+    private static func rowStandsIn<Node>(for added: ArraySlice<ScannedElement<Node>>, rowFrame: CGRect?) -> Bool {
+        let controls = added.filter { $0.role != "AXRow" }
+        guard let control = controls.first else { return true }
+        guard controls.count == 1, control.role == "AXButton", let rowFrame else { return false }
+        return control.frame.minX - rowFrame.minX <= leadingLabelInset
+    }
+
+    /// How far from a row's leading edge its label button may start.
+    private static let leadingLabelInset: CGFloat = 40
+
+    private func isActionable<Node: AccessibilityNode>(_ node: Node, role: String, inRow: Bool) -> Bool {
+        // Decided by role when possible to save the round-trip.
+        if inRow { return Self.rowControlRoles.contains(role) }
+        // Rows become targets through the row rule in `visit`, never on their own.
+        if role == "AXRow" || Self.excludedRoles.contains(role) { return false }
+        if Self.actionableRoles.contains(role) { return true }
+        return node.actions().contains { action in
+            !Self.ignoredActions.contains(action) && !action.hasPrefix(Self.customActionPrefix)
+        }
     }
 }

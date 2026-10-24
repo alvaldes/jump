@@ -22,6 +22,9 @@ public struct HintAnchor: Sendable, Equatable {
     public let point: CGPoint
     public let alignment: Alignment
 
+    /// Distance from a row's leading edge to its hint and click point.
+    public nonisolated static let rowLeadingInset: CGFloat = 24
+
     public nonisolated init(point: CGPoint, alignment: Alignment) {
         self.point = point
         self.alignment = alignment
@@ -31,6 +34,9 @@ public struct HintAnchor: Sendable, Equatable {
         if role == "AXLink" {
             // Links often wrap across lines; centering would cover the text (Vimac #373).
             self.init(point: CGPoint(x: frame.minX, y: frame.maxY), alignment: .bottomLeading)
+        } else if role == "AXRow" {
+            // A row's label (icon, name) is at its leading side, not its center.
+            self.init(point: CGPoint(x: frame.minX + min(Self.rowLeadingInset, frame.width / 2), y: frame.midY), alignment: .center)
         } else {
             self.init(point: CGPoint(x: frame.midX, y: frame.midY), alignment: .center)
         }

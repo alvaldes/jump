@@ -44,7 +44,8 @@ struct HintLabelsTests {
 struct HintAssignerTests {
     private nonisolated struct Node: AccessibilityNode {
         let id: String
-        func attributes() -> NodeAttributes? { nil }
+        func attributes(prefetchingChildren: Bool) -> NodeAttributes? { nil }
+        func actions() -> [String] { [] }
         func children(role: String) -> [Node] { [] }
     }
 

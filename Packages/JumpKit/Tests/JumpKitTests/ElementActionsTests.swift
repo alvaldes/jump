@@ -20,3 +20,16 @@ struct ElementActionsTests {
         #expect(point == CGPoint(x: 103, y: 52))
     }
 }
+
+@Suite("Row targets")
+struct RowTargetTests {
+    private let row = CGRect(x: 100, y: 50, width: 400, height: 20)
+
+    @Test func rowHintsSitAtTheLeadingSideWhereTheLabelIs() {
+        #expect(HintAnchor(role: "AXRow", frame: row) == HintAnchor(point: CGPoint(x: 124, y: 60), alignment: .center))
+    }
+
+    @Test func rowsAreClickedAtTheLeadingSide() {
+        #expect(ElementActions.clickPoint(role: "AXRow", frame: row) == CGPoint(x: 124, y: 60))
+    }
+}

@@ -18,6 +18,8 @@ final class ScrollModeController {
     private var sequenceTimeout: Task<Void, Never>?
     /// Where the pointer was before scroll mode moved it.
     private var originalPointer: CGPoint?
+    /// The direction key whose release stops the current scroll.
+    private var heldKeyCode: UInt16?
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
 
@@ -50,7 +52,7 @@ final class ScrollModeController {
         scanTask = nil
         guard isActive else { return }
         isActive = false
-        scroller.stop()
+        stopScrolling()
         sequenceTimeout?.cancel()
         overlay.hide()
         stopListening()
@@ -82,31 +84,45 @@ final class ScrollModeController {
             isActive = true
             input = ScrollInput()
             originalPointer = Pointer.location
-            setActiveArea(0)
+            guard setActiveArea(0) else {
+                logger.error("Scroll mode could not receive keys; leaving it")
+                return deactivate()
+            }
             startListening()
             let milliseconds = Int((ContinuousClock.now - start) / .milliseconds(1))
             logger.info("Scroll mode in \(appName, privacy: .public): \(found.count) areas, ready after \(milliseconds) ms")
         }
     }
 
-    private func setActiveArea(_ index: Int) {
-        scroller.stop()
+    @discardableResult
+    private func setActiveArea(_ index: Int) -> Bool {
+        stopScrolling()
         activeIndex = index
         let frame = areas[index].frame
-        overlay.showOutline(frame)
+        let receivesKeys = overlay.showOutline(frame)
         // Scroll events go to whatever is under the pointer.
         Pointer.move(to: CGPoint(x: frame.midX, y: frame.midY))
+        return receivesKeys
+    }
+
+    private func stopScrolling() {
+        scroller.stop()
+        heldKeyCode = nil
     }
 
     private func handleKeyDown(_ event: NSEvent) {
         // Holding a key scrolls until key up; auto-repeat must not restart it.
         guard !event.isARepeat, let key = Self.scrollKey(for: event) else { return }
+        // ⌘J or ⌃D are app shortcuts, not scroll commands.
+        guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]) else { return }
         sequenceTimeout?.cancel()
         switch input.handle(key) {
         case .command(.scroll(let direction)):
             scroller.startSmooth(direction)
+            heldKeyCode = event.keyCode
         case .command(.halfPage(let direction)):
             scroller.startHalfPage(direction, in: areas[activeIndex].frame)
+            heldKeyCode = event.keyCode
         case .command(.top):
             scroller.scrollToEdge(top: true)
         case .command(.bottom):
@@ -139,8 +155,9 @@ final class ScrollModeController {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             if event.type == .keyDown {
                 self?.handleKeyDown(event)
-            } else {
-                self?.scroller.stop()
+            } else if event.keyCode == self?.heldKeyCode {
+                // Only releasing the key that started the scroll stops it.
+                self?.stopScrolling()
             }
             // Swallow every key while scroll mode is active.
             return nil

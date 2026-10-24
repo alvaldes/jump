@@ -78,10 +78,12 @@ public final class HintOverlay {
     }
 
     /// Outlines one area (AX coordinates) for scroll mode and makes its panel
-    /// key, so keystrokes reach JUMP without activating it.
-    public func showOutline(_ frame: CGRect) {
+    /// key, so keystrokes reach JUMP without activating it. Returns whether the
+    /// panel became key; without it no key would reach scroll mode.
+    @discardableResult
+    public func showOutline(_ frame: CGRect) -> Bool {
         let screens = NSScreen.screens
-        guard let primary = screens.first else { return }
+        guard let primary = screens.first else { return false }
         syncPanels(with: screens)
         let appKitFrame = ScreenGeometry.appKitRect(fromAX: frame, primaryScreenHeight: primary.frame.height)
 
@@ -94,8 +96,10 @@ public final class HintOverlay {
             panel.displayIfNeeded()
         }
         let center = CGPoint(x: appKitFrame.midX, y: appKitFrame.midY)
-        (panels.first { $0.frame.contains(center) } ?? panels.first)?.makeKey()
+        let keyPanel = panels.first { $0.frame.contains(center) } ?? panels.first
+        keyPanel?.makeKey()
         isVisible = true
+        return keyPanel?.isKeyWindow ?? false
     }
 
     /// Keeps only hints starting with `typed`, with those characters dimmed.

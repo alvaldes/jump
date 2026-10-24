@@ -31,4 +31,18 @@ public nonisolated enum FocusedWindowScanner {
         }
         return scanner.scan(root: AXNode(window), deadline: deadline)
     }
+
+    /// The focused window's scroll areas, largest first, the window last.
+    @concurrent
+    public static func scrollAreas(
+        pid: pid_t,
+        budget: Duration = .milliseconds(150)
+    ) async throws -> [ScrollArea<AXNode>] {
+        let deadline = ContinuousClock.now.advanced(by: budget)
+        let app = AXNode(AXUIElementCreateApplication(pid))
+        guard let window: AXUIElement = AXNode.copyAttribute("AXFocusedWindow", of: app.element) else {
+            throw FocusedWindowScanError.noFocusedWindow
+        }
+        return ScrollAreaFinder().find(in: AXNode(window), deadline: deadline)
+    }
 }

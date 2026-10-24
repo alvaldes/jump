@@ -13,6 +13,7 @@ struct SettingsView: View {
         Form {
             Section {
                 KeyboardShortcuts.Recorder("Show hints:", name: .activateHints)
+                KeyboardShortcuts.Recorder("Scroll mode:", name: .activateScroll)
             }
 
             Section {

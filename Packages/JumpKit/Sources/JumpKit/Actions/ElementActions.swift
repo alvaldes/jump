@@ -17,7 +17,7 @@ public nonisolated enum ElementActions {
         case .doubleClick:
             click(at: point, button: .left, count: 2)
         case .moveCursor:
-            moveCursor(to: point)
+            Pointer.move(to: point)
         }
     }
 
@@ -51,7 +51,7 @@ public nonisolated enum ElementActions {
         let (down, up): (CGEventType, CGEventType) = button == .right
             ? (.rightMouseDown, .rightMouseUp)
             : (.leftMouseDown, .leftMouseUp)
-        moveCursor(to: point)
+        Pointer.move(to: point)
         for clickState in 1...count {
             for type in [down, up] {
                 guard let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: button)
@@ -65,8 +65,4 @@ public nonisolated enum ElementActions {
         }
     }
 
-    private static func moveCursor(to point: CGPoint) {
-        CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left)?
-            .post(tap: .cghidEventTap)
-    }
 }

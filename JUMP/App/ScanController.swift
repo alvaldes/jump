@@ -37,6 +37,8 @@ final class ScanController {
             let start = ContinuousClock.now
             do {
                 let result = try await FocusedWindowScanner.scan(pid: pid)
+                // A newer hotkey press replaced this scan; don't overwrite its summary.
+                guard !Task.isCancelled else { return }
                 let elapsed = ContinuousClock.now - start
                 report(result, appName: appName, elapsed: elapsed)
             } catch {

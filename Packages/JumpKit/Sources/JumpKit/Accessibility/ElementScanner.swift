@@ -87,7 +87,9 @@ public nonisolated struct ElementScanner: Sendable {
         }
 
         // A row with nothing actionable inside is itself the target (e.g. a list item).
-        if !isActionable, attributes.role == "AXRow", state.elements.count == countBeforeChildren {
+        // Skipped when the scan stopped inside the row: its content is then unknown.
+        if !isActionable, !state.isTruncated, attributes.role == "AXRow",
+           state.elements.count == countBeforeChildren {
             state.elements.append(element)
         }
     }

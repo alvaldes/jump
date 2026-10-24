@@ -8,8 +8,15 @@ public nonisolated struct AXNode: AccessibilityNode, @unchecked Sendable {
     // AXUIElement is an immutable CF handle; the AX API is safe to call from any thread.
     public let element: AXUIElement
 
+    /// Upper bound for a single AX request, so a hung app cannot stall a scan
+    /// (Vimac used 1 s globally).
+    static let messagingTimeout: Float = 0.25
+
     public init(_ element: AXUIElement) {
         self.element = element
+        // The timeout applies only to this exact reference, never to the
+        // children copied from it, so every node sets its own. Local call, no IPC.
+        AXUIElementSetMessagingTimeout(element, Self.messagingTimeout)
     }
 
     private static let frameAttributes = ["AXRole", "AXPosition", "AXSize"]

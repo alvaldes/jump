@@ -103,6 +103,17 @@ struct ElementScannerTests {
         #expect(result.isTruncated)
     }
 
+    @Test func doesNotTreatAPartiallyScannedRowAsEmpty() {
+        // The cap hits while visiting the row's children, so its content is unknown.
+        let row = node("row", role: "AXRow", [
+            node("text", role: "AXStaticText"),
+            node("button", actions: ["AXPress"]),
+        ])
+        let result = ElementScanner(maxElements: 2).scan(root: window([row]), deadline: farFuture)
+        #expect(result.isTruncated)
+        #expect(result.elements.isEmpty)
+    }
+
     @Test func doesNotDescendBelowTheDepthCap() {
         let deep = node("level1", [node("level2", [node("level3", actions: ["AXPress"])])])
         let result = ElementScanner(maxDepth: 2).scan(root: window([deep]), deadline: farFuture)

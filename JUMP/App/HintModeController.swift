@@ -12,12 +12,15 @@ final class HintModeController {
 
     private let permission: AccessibilityPermission
     private let overlay = HintOverlay()
+    private let webAccessibility = WebAccessibilityEnabler()
     private let logger = Logger(subsystem: "com.alvaldes.jump", category: "hints")
 
     private var scanTask: Task<Void, Never>?
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
     private var screenObserver: (any NSObjectProtocol)?
+    private var activationObserver: (any NSObjectProtocol)?
+    private var terminationObserver: (any NSObjectProtocol)?
     private var hints: [Hint<AXNode>] = []
     private var input = HintInput(labels: [])
 
@@ -33,6 +36,7 @@ final class HintModeController {
         if permission.isTrusted {
             Task { await FocusedWindowScanner.warmUp() }
         }
+        observeAppLifecycle()
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
@@ -66,6 +70,8 @@ final class HintModeController {
 
         let appName = app.localizedName ?? "Unknown app"
         let pid = app.processIdentifier
+        // Usually already done on activation; covers apps that were in front before JUMP started.
+        webAccessibility.enable(pid: pid, bundleIdentifier: app.bundleIdentifier)
         // Latency budget (spec §3.9) is measured from the hotkey to hints on screen.
         let start = ContinuousClock.now
         scanTask = Task {
@@ -165,6 +171,32 @@ final class HintModeController {
                 self?.logger.debug("App switch to \(name, privacy: .public) dismisses hints")
                 self?.dismiss()
             }
+        }
+    }
+
+    /// Chromium and Electron build their accessibility tree only on request and
+    /// asynchronously, so it is requested as soon as an app comes to the front,
+    /// well before the hotkey. Restored when JUMP quits.
+    private func observeAppLifecycle() {
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard let pid = app?.processIdentifier, pid != ProcessInfo.processInfo.processIdentifier else { return }
+            let bundleIdentifier = app?.bundleIdentifier
+            MainActor.assumeIsolated {
+                guard let self, self.permission.isTrusted else { return }
+                self.webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier)
+            }
+        }
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.webAccessibility.restoreAll() }
         }
     }
 

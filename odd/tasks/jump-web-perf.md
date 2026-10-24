@@ -12,11 +12,11 @@ Branch: `feat/web-perf` (stacked on `feat/actions`) · Delivery: ask-on-risk · 
 
 ## Tasks
 
-- T1 · S1 · inline · cut AX round-trips: role-decided actionability, custom actions ignored, list rows as one target, row sampling, batched children · pending commit
-- T2 · S1 · inline · overlay + AX client warm-up, end-to-end latency log · pending commit
-- T3 · S1 · inline · jump-bench developer tool (spaced runs by default) · pending commit
-- T4 · S2 · inline · web-area search predicate traversal · pending
-- T5 · S3, S4 · inline · Chromium/Electron accessibility enabler · pending
+- [x] T1 · S1 · inline · cut AX round-trips: role-decided actionability, custom actions ignored, list rows as one target, row sampling, batched children · 8d8344e · RED→GREEN per rule
+- [x] T2 · S1 · inline · overlay + AX client warm-up, end-to-end latency log · c630524 · measured
+- [x] T3 · S1 · inline · jump-bench developer tool (spaced runs by default) · 06aed60
+- [x] T4 · S2 · inline · web-area search predicate traversal · 4c1feaf · RED→GREEN
+- [x] T5 · S3, S4 · inline · Chromium/Electron accessibility enabler · b044f3d · RED→GREEN, live verified
 
 ## Log
 
@@ -25,3 +25,5 @@ Branch: `feat/web-perf` (stacked on `feat/actions`) · Delivery: ask-on-risk · 
 - L3: Measurements (release, Finder ~ list view, 2 displays). Baseline: 598 nodes, 1,780 IPC calls, 81 ms warm / 52-83 ms spaced; app end-to-end 59-70 ms (128 ms first). Rejected experiments: parallel subtree scan (65→60 ms; target app serializes AX on its main thread), user-interactive QoS queue (no measurable gain, reverted). Kept: batched AXChildren (81→65), role-decided actions + custom "Name:" actions ignored, rows as one target (42 ms warm, 138→86 hints: also fixes the duplicate-hint-per-row bug), no children prefetch under AXScrollArea (2,473-item folder 56.8→49.5), row sampling (598→116 nodes), leading-label rows (Settings 190→140 nodes), overlay backing-store + text warm-up and AX client warm-up at launch.
 - L4: End-to-end now (Release, "on screen after"): Finder 21-28 ms, System Settings 33-51 ms, Notes 23-32 ms; first activation after launch 33-40 ms (was 74-80). Bench runs are spaced by default because back-to-back runs are ~30% optimistic.
 - L5: Behavior changes (deliberate, for S1): list rows are one hint at their leading side (cells/labels no longer separate hints); toolbar items exposing only custom actions get no hint; tables whose first 3 rows hold no control (or only a leading label button) hint later rows without reading them — a control appearing only after row 3 gets no own hint (its row does).
+- L6: Web (Release, end-to-end or bench): Safari HN 842→198 nodes, 90→38 ms (one search call, 2.4 ms); Arc HN 0 web hints → 186 hints, 26 ms (accepts AXManualAccessibility, no AXEnhancedUserInterface needed); Obsidian 3 → 31 hints, 15-20 ms; Zen (Firefox) 146 hints, 96 ms (within the 150 ms browser budget). Finder rejects AXManualAccessibility (-25205), so trying it on every activated app is harmless. Restore on quit verified by effect: after quitting JUMP (graceful quit), Obsidian is back to 3 elements. The flag cannot be read back (Arc: unsupported; Obsidian: always 0).
+- L7: Not covered: AXEnhancedUserInterface path (no Chrome/Brave/Edge installed to test); force-quit/crash of JUMP leaves flags on (willTerminate is not called on SIGKILL). 70/70 tests.

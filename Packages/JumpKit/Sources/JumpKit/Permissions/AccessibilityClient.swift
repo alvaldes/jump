@@ -54,17 +54,43 @@ extension AccessibilityClient {
         },
         trustChanges: {
             AsyncStream { continuation in
-                let listener = Task {
-                    let notifications = DistributedNotificationCenter.default()
-                        .notifications(named: trustChangedNotification)
-                    for await _ in notifications {
+                let observer = TrustChangeObserver(name: trustChangedNotification) {
+                    Task {
                         try? await Task.sleep(for: trustSettleDelay)
                         continuation.yield()
                     }
-                    continuation.finish()
                 }
-                continuation.onTermination = { _ in listener.cancel() }
+                continuation.onTermination = { _ in observer.invalidate() }
             }
         }
     )
+}
+
+/// Distributed-notification observer that keeps receiving while JUMP is inactive.
+///
+/// `NSApplication` suspends distributed notifications for inactive apps, and a
+/// menu bar agent is inactive almost all the time. Only the selector-based API
+/// accepts `.deliverImmediately`, hence this small NSObject.
+private final class TrustChangeObserver: NSObject, Sendable {
+    private let onChange: @Sendable () -> Void
+
+    nonisolated init(name: Notification.Name, onChange: @escaping @Sendable () -> Void) {
+        self.onChange = onChange
+        super.init()
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handle),
+            name: name,
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+    }
+
+    nonisolated func invalidate() {
+        DistributedNotificationCenter.default().removeObserver(self)
+    }
+
+    @objc nonisolated private func handle(_ notification: Notification) {
+        onChange()
+    }
 }

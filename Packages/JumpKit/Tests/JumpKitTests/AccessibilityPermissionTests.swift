@@ -73,17 +73,29 @@ struct AccessibilityPermissionTests {
         #expect(system.settingsOpenCount.withLock { $0 } == 1)
     }
 
-    @Test func monitorUpdatesStateOnTrustChange() async {
+    @Test func monitorPollsUntilTrustedWithoutNotifications() async {
+        // The system notification is not delivered while JUMP is inactive,
+        // which is exactly when the user is in System Settings.
         let system = FakeSystem(trusted: false)
+        let permission = AccessibilityPermission(client: system.client(), pollInterval: .zero)
+
+        system.trusted.withLock { $0 = true }
+        await permission.monitor()
+
+        #expect(permission.isTrusted)
+    }
+
+    @Test func monitorUpdatesStateOnTrustChange() async {
+        let system = FakeSystem(trusted: true)
         let (changes, continuation) = AsyncStream<Void>.makeStream()
         let permission = AccessibilityPermission(client: system.client(changes: changes))
 
         let monitoring = Task { await permission.monitor() }
-        system.trusted.withLock { $0 = true }
+        system.trusted.withLock { $0 = false }
         continuation.yield()
         continuation.finish()
         await monitoring.value
 
-        #expect(permission.isTrusted)
+        #expect(!permission.isTrusted)
     }
 }

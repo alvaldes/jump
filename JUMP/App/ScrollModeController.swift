@@ -73,10 +73,17 @@ final class ScrollModeController {
         let pid = app.processIdentifier
         let appName = app.localizedName ?? "Unknown app"
         let start = ContinuousClock.now
+        let screens = Self.screenFramesInAXCoordinates()
         scanTask = Task {
-            let found = (try? await FocusedWindowScanner.scrollAreas(pid: pid)) ?? []
+            let found = (try? await FocusedWindowScanner.scrollAreas(pid: pid, screens: screens)) ?? []
             guard !Task.isCancelled else { return }
             scanTask = nil
+            // The user switched apps during the search: these areas belong to a
+            // window that is no longer in front.
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+                logger.info("App changed while searching scroll areas; not entering scroll mode")
+                return
+            }
             guard !found.isEmpty else {
                 logger.notice("No scroll area in \(appName, privacy: .public)")
                 return
@@ -93,6 +100,11 @@ final class ScrollModeController {
             let milliseconds = Int((ContinuousClock.now - start) / .milliseconds(1))
             logger.info("Scroll mode in \(appName, privacy: .public): \(found.count) areas, ready after \(milliseconds) ms")
         }
+    }
+
+    private static func screenFramesInAXCoordinates() -> [CGRect] {
+        guard let primaryHeight = NSScreen.screens.first?.frame.height else { return [] }
+        return NSScreen.screens.map { ScreenGeometry.axRect(fromAppKit: $0.frame, primaryScreenHeight: primaryHeight) }
     }
 
     @discardableResult

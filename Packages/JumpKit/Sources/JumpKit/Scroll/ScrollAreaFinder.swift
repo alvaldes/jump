@@ -20,15 +20,28 @@ public nonisolated struct ScrollAreaFinder: Sendable {
         self.maxNodes = maxNodes
     }
 
-    public func find<Node: AccessibilityNode>(in window: Node, deadline: ContinuousClock.Instant) -> [ScrollArea<Node>] {
+    /// - Parameter screens: Display frames in AX coordinates. Areas are clipped
+    ///   to the one showing most of the window (Vimac), so an area's center,
+    ///   where the pointer goes, is always on screen.
+    public func find<Node: AccessibilityNode>(
+        in window: Node,
+        deadline: ContinuousClock.Instant,
+        screens: [CGRect] = []
+    ) -> [ScrollArea<Node>] {
         guard let attributes = window.attributes(prefetchingChildren: true) else { return [] }
+        let windowFrame = Self.visiblePart(of: attributes.frame, on: screens)
         var areas: [ScrollArea<Node>] = []
         var visited = 1
         for child in window.children(role: attributes.role) {
-            search(child, clip: attributes.frame, depth: 1, deadline: deadline, visited: &visited, areas: &areas)
+            search(child, clip: windowFrame, depth: 1, deadline: deadline, visited: &visited, areas: &areas)
         }
         let largestFirst = areas.sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
-        return largestFirst + [ScrollArea(node: window, frame: attributes.frame)]
+        return largestFirst + [ScrollArea(node: window, frame: windowFrame)]
+    }
+
+    static func visiblePart(of frame: CGRect, on screens: [CGRect]) -> CGRect {
+        let overlaps = screens.map { $0.intersection(frame) }.filter { !$0.isNull && !$0.isEmpty }
+        return overlaps.max { $0.width * $0.height < $1.width * $1.height } ?? frame
     }
 
     private func search<Node: AccessibilityNode>(

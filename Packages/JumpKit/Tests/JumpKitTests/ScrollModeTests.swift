@@ -88,6 +88,17 @@ struct ScrollAreaFinderTests {
         #expect(ids(root) == ["window"])
     }
 
+    @Test func areasAreClippedToTheScreenShowingMostOfTheWindow() {
+        // Window hanging off the right edge of a 1000-wide display, with a second
+        // display that only shows a sliver of it.
+        let screens = [CGRect(x: 0, y: 0, width: 1000, height: 800), CGRect(x: 1000, y: 0, width: 800, height: 800)]
+        let root = Node(id: "window", role: "AXWindow", frame: CGRect(x: 600, y: 0, width: 500, height: 800), kids: [
+            Node(id: "content", role: "AXScrollArea", frame: CGRect(x: 600, y: 0, width: 500, height: 800)),
+        ])
+        let frames = ScrollAreaFinder().find(in: root, deadline: farFuture, screens: screens).map(\.frame)
+        #expect(frames == [CGRect(x: 600, y: 0, width: 400, height: 800), CGRect(x: 600, y: 0, width: 400, height: 800)])
+    }
+
     @Test func webContentAndTablesAreNotSearched() {
         // Walking a web page or thousands of rows would cost far more than it finds.
         let root = window([

@@ -34,8 +34,10 @@ public nonisolated enum FocusedWindowScanner {
 
     /// The focused window's scroll areas, largest first, the window last.
     @concurrent
+    /// - Parameter screens: Display frames in AX coordinates.
     public static func scrollAreas(
         pid: pid_t,
+        screens: [CGRect],
         budget: Duration = .milliseconds(150)
     ) async throws -> [ScrollArea<AXNode>] {
         let deadline = ContinuousClock.now.advanced(by: budget)
@@ -43,6 +45,6 @@ public nonisolated enum FocusedWindowScanner {
         guard let window: AXUIElement = AXNode.copyAttribute("AXFocusedWindow", of: app.element) else {
             throw FocusedWindowScanError.noFocusedWindow
         }
-        return ScrollAreaFinder().find(in: AXNode(window), deadline: deadline)
+        return ScrollAreaFinder().find(in: AXNode(window), deadline: deadline, screens: screens)
     }
 }

@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import Testing
 @testable import JumpKit
@@ -105,12 +106,28 @@ struct ScrollAreaFinderTests {
 
 @Suite("Scroller")
 struct ScrollerTests {
-    @Test func wheelDeltasFollowTheContentDirection() {
+    @Test func wheelDeltasWithTraditionalScrolling() {
         // Positive wheel values move content down, so "scroll down" is negative.
-        #expect(Scroller.wheelDelta(.down, distance: 40) == ScrollDelta(horizontal: 0, vertical: -40))
-        #expect(Scroller.wheelDelta(.up, distance: 40) == ScrollDelta(horizontal: 0, vertical: 40))
-        #expect(Scroller.wheelDelta(.right, distance: 40) == ScrollDelta(horizontal: -40, vertical: 0))
-        #expect(Scroller.wheelDelta(.left, distance: 40) == ScrollDelta(horizontal: 40, vertical: 0))
+        #expect(Scroller.wheelDelta(.down, distance: 40, naturalScrolling: false) == ScrollDelta(horizontal: 0, vertical: -40))
+        #expect(Scroller.wheelDelta(.up, distance: 40, naturalScrolling: false) == ScrollDelta(horizontal: 0, vertical: 40))
+        #expect(Scroller.wheelDelta(.right, distance: 40, naturalScrolling: false) == ScrollDelta(horizontal: -40, vertical: 0))
+        #expect(Scroller.wheelDelta(.left, distance: 40, naturalScrolling: false) == ScrollDelta(horizontal: 40, vertical: 0))
+    }
+
+    @Test func wheelDeltasAreFlippedWithNaturalScrolling() {
+        // macOS inverts synthesized wheel events too when natural scrolling is on,
+        // so `j` must send the opposite sign to still move down.
+        #expect(Scroller.wheelDelta(.down, distance: 40, naturalScrolling: true) == ScrollDelta(horizontal: 0, vertical: 40))
+        #expect(Scroller.wheelDelta(.up, distance: 40, naturalScrolling: true) == ScrollDelta(horizontal: 0, vertical: -40))
+        #expect(Scroller.wheelDelta(.right, distance: 40, naturalScrolling: true) == ScrollDelta(horizontal: 40, vertical: 0))
+        #expect(Scroller.wheelDelta(.left, distance: 40, naturalScrolling: true) == ScrollDelta(horizontal: -40, vertical: 0))
+    }
+
+    @Test func naturalScrollingIsReadFromTheGlobalPreference() {
+        let defaults = UserDefaults(suiteName: "ScrollerTests.\(UUID().uuidString)")!
+        #expect(Scroller.isNaturalScrolling(defaults: defaults), "macOS default is on")
+        defaults.set(false, forKey: "com.apple.swipescrolldirection")
+        #expect(!Scroller.isNaturalScrolling(defaults: defaults))
     }
 
     @Test func halfPageIsHalfTheAreaInTheScrollAxis() {

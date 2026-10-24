@@ -23,18 +23,21 @@ public final class Scroller {
 
     /// Scrolls continuously until `stop()`.
     public func startSmooth(_ direction: ScrollDirection) {
-        repeatScroll(Self.wheelDelta(direction, distance: Self.smoothStep), every: Self.smoothInterval)
+        repeatScroll(Self.wheelDelta(direction, distance: Self.smoothStep, naturalScrolling: Self.isNaturalScrolling()),
+                     every: Self.smoothInterval)
     }
 
     /// Jumps half the area at once, then repeats until `stop()`.
     public func startHalfPage(_ direction: ScrollDirection, in area: CGRect) {
         let distance = Self.halfPage(direction, of: area)
-        repeatScroll(Self.wheelDelta(direction, distance: distance), every: Self.halfPageInterval)
+        repeatScroll(Self.wheelDelta(direction, distance: distance, naturalScrolling: Self.isNaturalScrolling()),
+                     every: Self.halfPageInterval)
     }
 
     public func scrollToEdge(top: Bool) {
         stop()
-        Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance))
+        Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance,
+                                  naturalScrolling: Self.isNaturalScrolling()))
     }
 
     public func stop() {
@@ -51,14 +54,23 @@ public final class Scroller {
     }
 
     /// Positive wheel values move the content down/right toward the start,
-    /// so scrolling down or right uses negative values.
-    nonisolated static func wheelDelta(_ direction: ScrollDirection, distance: Int32) -> ScrollDelta {
-        switch direction {
-        case .up: ScrollDelta(horizontal: 0, vertical: distance)
-        case .down: ScrollDelta(horizontal: 0, vertical: -distance)
-        case .left: ScrollDelta(horizontal: distance, vertical: 0)
-        case .right: ScrollDelta(horizontal: -distance, vertical: 0)
+    /// so scrolling down or right uses negative values. macOS also applies the
+    /// user's natural-scrolling inversion to synthesized wheel events, so the
+    /// sign is flipped back when it is on.
+    nonisolated static func wheelDelta(_ direction: ScrollDirection, distance: Int32, naturalScrolling: Bool) -> ScrollDelta {
+        let signed = naturalScrolling ? -distance : distance
+        return switch direction {
+        case .up: ScrollDelta(horizontal: 0, vertical: signed)
+        case .down: ScrollDelta(horizontal: 0, vertical: -signed)
+        case .left: ScrollDelta(horizontal: signed, vertical: 0)
+        case .right: ScrollDelta(horizontal: -signed, vertical: 0)
         }
+    }
+
+    /// System Settings > Trackpad/Mouse > Natural scrolling, read on every
+    /// scroll so a change applies immediately. On by default in macOS.
+    nonisolated static func isNaturalScrolling(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true
     }
 
     nonisolated static func halfPage(_ direction: ScrollDirection, of area: CGRect) -> Int32 {

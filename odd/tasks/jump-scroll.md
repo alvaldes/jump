@@ -12,12 +12,13 @@ Branch: `feat/scroll` (from `main`) · Delivery: ask-on-risk · Test runner: `sw
 
 ## Tasks
 
-- T1 · S1 · inline · ScrollInput key state machine (`gg` sequence), tested · pending
-- T2 · S2, S4 · inline · ScrollAreaFinder over AccessibilityNode, tested · pending
-- T3 · S1, S2 · inline · Scroller (CGEvent pixel scroll, smooth/half page/edge) + overlay outline · pending
-- T4 · S2, S3 · inline · ScrollModeController wiring, shortcut, Settings recorder · pending
+- [x] T1 · S1 · inline · ScrollInput key state machine (`gg` sequence), tested · see git log · RED→GREEN
+- [x] T2 · S2, S4 · inline · ScrollAreaFinder over AccessibilityNode, tested · see git log · RED→GREEN; bench Finder 19 ms, Settings 27 ms
+- [x] T3 · S1, S2 · inline · Scroller (CGEvent pixel scroll, smooth/half page/edge) + overlay outline · a3b32fb · deltas RED→GREEN
+- [ ] T4 · S2, S3 · inline · ScrollModeController wiring, shortcut, Settings recorder · 30c3e3f · builds; live test pending (user)
 
 ## Log
 
 - L1 (2026-10-24): "dale, sigue con el modo scroll"
 - L2: Reference: Vimac `ScrollModeActiveScrollAreaViewController.swift` (key sequences with 0.25 s timeout, keyUp stops), `ChunkyScroller.swift` (pixel `scrollWheelEvent2`, smooth at 50 Hz, half page = area height / 2, edges = Int16 max), `QueryScrollAreasService.swift` (AXScrollArea DFS, skip AXWebArea, largest first).
+- L3: The live test with synthesized keys/mouse was declined by the user (it drives their session); T4 stays pending until the user tests it. 90/90 tests, Release build OK.

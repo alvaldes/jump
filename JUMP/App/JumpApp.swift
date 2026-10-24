@@ -5,23 +5,23 @@ import SwiftUI
 @main
 struct JumpApp: App {
     @State private var permission: AccessibilityPermission
-    @State private var scanController: ScanController
+    @State private var hintMode: HintModeController
 
     init() {
         let permission = AccessibilityPermission()
-        let scanController = ScanController(permission: permission)
+        let hintMode = HintModeController(permission: permission)
         _permission = State(initialValue: permission)
-        _scanController = State(initialValue: scanController)
+        _hintMode = State(initialValue: hintMode)
         // Track grants and revocations for the whole app lifetime.
         Task { await permission.monitor() }
         KeyboardShortcuts.onKeyDown(for: .activateHints) {
-            scanController.scanFocusedWindow()
+            hintMode.toggle()
         }
     }
 
     var body: some Scene {
         MenuBarExtra("JUMP", systemImage: "keyboard") {
-            MenuContent(permission: permission, scanController: scanController)
+            MenuContent(permission: permission, hintMode: hintMode)
         }
 
         Window("Welcome to JUMP", id: OnboardingView.windowID) {

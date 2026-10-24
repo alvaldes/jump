@@ -18,7 +18,7 @@ Branch: `feat/scanner` (stacked on `feat/foundation`) · Delivery: ask-on-risk �
 - [x] T1 · S3, S4 · inline · ElementScanner over an `AccessibilityNode` abstraction, tested with fake trees · cd0f31b · RED→GREEN
 - [x] T2 · S5 · inline · ScreenGeometry conversion + tests · 1baf761 · RED→GREEN
 - [x] T3 · S2, S4 · inline · live AXUIElement node + focused-window lookup + concurrent scan service · de92f8a · no RED (live AX boundary), verified manually
-- [~] T4 · S1, S6 · inline · KeyboardShortcuts dependency (exactVersion 3.1.0), hotkey wiring, menu scan summary · committed · Risk: item 5 · assess: high, review_due · independent verifier running
+- [x] T4 · S1, S6 · inline · KeyboardShortcuts dependency (exactVersion 3.1.0), hotkey wiring, menu scan summary · 287c76d (+ verifier fixes) · Risk: item 5 · verifier blocker fixed · native review granted → approved, acknowledged
 
 ## Log
 
@@ -26,3 +26,5 @@ Branch: `feat/scanner` (stacked on `feat/foundation`) · Delivery: ask-on-risk �
 - L2: Reference: Vimac `ElementTree.swift:86-125` (hintable rule), `TraverseGenericElementService.swift` (clip = parent's clipped frame for every element, visible rows for tables). KeyboardShortcuts latest 3.1.0 (2026-09-11), tools 6.2.
 - L3: Live check: launched signed build, Finder frontmost, synthesized Cmd-Shift-Space → log "Scanned Finder: 145 elements, 602 nodes visited, 121 ms, truncated: false". 121 ms exceeds the 50 ms native target: actions are fetched in a second IPC per node — optimization candidate. Deviation from S4: used a `@concurrent` function instead of a dedicated AX actor (AX calls are thread-safe; an actor would serialize scans for no benefit). Package.resolved lives in the git-ignored xcodeproj, so the dependency is pinned with exactVersion instead.
 - L4: Independent verifier: S1,S2,S3,S5,S6 met; S4 blocker confirmed against SDK header ("Setting the timeout on another accessibility object sets it only for that object") — timeout applied only to the app element. Fixed: AXNode.init sets it per node. Also fixed advisories: truncated row no longer appended (RED→GREEN, 23/23), cancelled scan no longer overwrites newer summary. Recheck: live Finder scan 145 elements, 135 ms.
+- [x] T5 · S4 · inline · review follow-ups R3-001 (depth cap skips only the deep branch), R3-002 (zero-size wrappers transparent), R3-003/R4-001 (cancelled failing scan no longer overwrites summary) · 2a4ad71 · RED→GREEN 25/25
+- L5: Native review (lenses risk, resilience, reliability) approved and acknowledged (lineage review-026d6d4bde4adcaa). Non-blocking follow-ups still open: R1-001 pin by revision / commit Package.resolved; R4-002 worst-case latency against a hung app (~0.5 s before traversal + up to 3 blocking calls per node); R3-004 inject frontmost-app/scan providers to unit-test ScanController branches. Behavior change (deliberate): zero-area actionable elements are no longer targets (Finder: 145 → 140), since nothing visible can carry a hint.

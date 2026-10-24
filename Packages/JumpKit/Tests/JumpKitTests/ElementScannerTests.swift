@@ -121,6 +121,25 @@ struct ElementScannerTests {
         #expect(result.isTruncated)
     }
 
+    @Test func depthCapSkipsOnlyTheDeepBranch() {
+        let deep = node("level1", [node("level2", [node("level3", actions: ["AXPress"])])])
+        let sibling = node("sibling", actions: ["AXPress"])
+        let result = ElementScanner(maxDepth: 2).scan(root: window([deep, sibling]), deadline: farFuture)
+        #expect(result.elements.map(\.node.id) == ["sibling"])
+        #expect(result.isTruncated)
+    }
+
+    @Test func zeroSizeContainersDoNotHideTheirChildren() {
+        let root = window([
+            node("wrapper", frame: .zero, [
+                node("button", frame: CGRect(x: 10, y: 10, width: 20, height: 20), actions: ["AXPress"]),
+            ]),
+        ])
+        let elements = ElementScanner().scan(root: root, deadline: farFuture).elements
+        #expect(elements.map(\.node.id) == ["button"])
+        #expect(elements.map(\.frame) == [CGRect(x: 10, y: 10, width: 20, height: 20)])
+    }
+
     @Test func stopsWhenTheDeadlineHasPassed() {
         let root = window([node("button", actions: ["AXPress"])])
         let result = ElementScanner().scan(root: root, deadline: .now.advanced(by: .seconds(-1)))

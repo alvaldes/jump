@@ -35,13 +35,13 @@ final class ScanController {
         scanTask?.cancel()
         scanTask = Task {
             let start = ContinuousClock.now
-            do {
-                let result = try await FocusedWindowScanner.scan(pid: pid)
-                // A newer hotkey press replaced this scan; don't overwrite its summary.
-                guard !Task.isCancelled else { return }
-                let elapsed = ContinuousClock.now - start
-                report(result, appName: appName, elapsed: elapsed)
-            } catch {
+            let outcome = await Result { try await FocusedWindowScanner.scan(pid: pid) }
+            // A newer hotkey press replaced this scan; don't overwrite its summary.
+            guard !Task.isCancelled else { return }
+            switch outcome {
+            case .success(let result):
+                report(result, appName: appName, elapsed: ContinuousClock.now - start)
+            case .failure:
                 lastSummary = "\(appName): no focused window"
                 logger.notice("Scan of \(appName, privacy: .public) found no focused window")
             }

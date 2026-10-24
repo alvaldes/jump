@@ -42,14 +42,21 @@ public nonisolated struct ElementScanner: Sendable {
     public func scan<Node: AccessibilityNode>(root: Node, deadline: ContinuousClock.Instant) -> ScanResult<Node> {
         var state = State<Node>(deadline: deadline)
         visit(root, clip: nil, depth: 0, state: &state)
-        return ScanResult(elements: state.elements, visitedCount: state.visitedCount, isTruncated: state.isTruncated)
+        return ScanResult(
+            elements: state.elements,
+            visitedCount: state.visitedCount,
+            isTruncated: state.isStopped || state.skippedBranches > 0
+        )
     }
 
     private struct State<Node: AccessibilityNode> {
         let deadline: ContinuousClock.Instant
         var elements: [ScannedElement<Node>] = []
         var visitedCount = 0
-        var isTruncated = false
+        /// The element cap, deadline or cancellation ended the whole scan.
+        var isStopped = false
+        /// Subtrees left out because they were deeper than `maxDepth`.
+        var skippedBranches = 0
     }
 
     private func visit<Node: AccessibilityNode>(
@@ -58,39 +65,49 @@ public nonisolated struct ElementScanner: Sendable {
         depth: Int,
         state: inout State<Node>
     ) {
-        guard !state.isTruncated else { return }
-        guard depth <= maxDepth,
-              state.visitedCount < maxElements,
+        guard !state.isStopped else { return }
+        guard state.visitedCount < maxElements,
               ContinuousClock.now < state.deadline,
               !Task.isCancelled
         else {
-            state.isTruncated = true
+            state.isStopped = true
+            return
+        }
+        // Only this branch is too deep; its siblings are still scanned.
+        guard depth <= maxDepth else {
+            state.skippedBranches += 1
             return
         }
 
         state.visitedCount += 1
         guard let attributes = node.attributes() else { return }
 
-        // Prune elements (and their subtrees) entirely outside their ancestors.
-        if let clip, !clip.intersects(attributes.frame) { return }
-        let visibleFrame = clip.map { $0.intersection(attributes.frame) } ?? attributes.frame
+        // Zero-size wrappers (common for AXGroup) are transparent: they neither
+        // clip nor hide their children, and are not targets themselves.
+        let frame = attributes.frame
+        let hasArea = frame.width > 0 && frame.height > 0
 
-        let element = ScannedElement(node: node, role: attributes.role, frame: visibleFrame)
-        let isActionable = isActionable(attributes)
-        if isActionable {
-            state.elements.append(element)
+        // Prune elements (and their subtrees) entirely outside their ancestors.
+        if hasArea, let clip, !clip.intersects(frame) { return }
+        let visibleFrame = hasArea ? (clip.map { $0.intersection(frame) } ?? frame) : nil
+
+        let isTarget = visibleFrame != nil && isActionable(attributes)
+        if isTarget, let visibleFrame {
+            state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
 
         let countBeforeChildren = state.elements.count
+        let skippedBeforeChildren = state.skippedBranches
         for child in node.children(role: attributes.role) {
-            visit(child, clip: visibleFrame, depth: depth + 1, state: &state)
+            visit(child, clip: visibleFrame ?? clip, depth: depth + 1, state: &state)
         }
 
         // A row with nothing actionable inside is itself the target (e.g. a list item).
-        // Skipped when the scan stopped inside the row: its content is then unknown.
-        if !isActionable, !state.isTruncated, attributes.role == "AXRow",
-           state.elements.count == countBeforeChildren {
-            state.elements.append(element)
+        // Skipped when part of the row was not scanned: its content is then unknown.
+        let rowFullyScanned = !state.isStopped && state.skippedBranches == skippedBeforeChildren
+        if !isTarget, rowFullyScanned, attributes.role == "AXRow",
+           state.elements.count == countBeforeChildren, let visibleFrame {
+            state.elements.append(ScannedElement(node: node, role: attributes.role, frame: visibleFrame))
         }
     }
 

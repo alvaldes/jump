@@ -1,4 +1,4 @@
-import CoreGraphics
+import AppKit
 
 /// Converts between the two global coordinate systems macOS uses.
 ///
@@ -18,5 +18,14 @@ public nonisolated enum ScreenGeometry {
 
     public static func axRect(fromAppKit rect: CGRect, primaryScreenHeight: CGFloat) -> CGRect {
         CGRect(x: rect.minX, y: primaryScreenHeight - rect.maxY, width: rect.width, height: rect.height)
+    }
+}
+
+extension ScreenGeometry {
+    /// Every display's frame in AX coordinates.
+    @MainActor
+    public static func screenFramesInAXCoordinates() -> [CGRect] {
+        guard let primaryHeight = NSScreen.screens.first?.frame.height else { return [] }
+        return NSScreen.screens.map { axRect(fromAppKit: $0.frame, primaryScreenHeight: primaryHeight) }
     }
 }

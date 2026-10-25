@@ -146,3 +146,44 @@ struct HintModeLifecycleTests {
         #expect(await performed(mode).isEmpty)
     }
 }
+
+@Suite("Mode switching")
+struct ModeSwitcherTests {
+    @Test func theTwoModesNeverRunTogether() async {
+        let overlay = FakeOverlay()
+        let hintInput = FakeInput()
+        let scrollInput = FakeInput()
+        let hints = HintMode<ModeNode>(
+            overlay: overlay, input: hintInput, isTrusted: { true }, hintCharacters: { "sa" },
+            frontmostApp: { fakeApp },
+            scan: { _ in
+                ScanResult(elements: [ScannedElement(node: ModeNode(id: "a"), role: "AXButton",
+                                                     frame: CGRect(x: 0, y: 0, width: 10, height: 10))],
+                           visitedCount: 1, isTruncated: false)
+            },
+            perform: { _, _ in }
+        )
+        let scroll = ScrollMode(
+            overlay: overlay, pointer: FakePointer(), input: scrollInput, driver: FakeDriver(),
+            isTrusted: { true }, frontmostApp: { fakeApp }, screens: { [] },
+            findTargets: { _, _ in [ScrollTarget(frame: CGRect(x: 0, y: 0, width: 100, height: 100), control: FakeControl(id: 1))] }
+        )
+        let switcher = ModeSwitcher(hints: hints, scroll: scroll)
+
+        switcher.activateScroll()
+        await scroll.scanTask?.value
+        #expect(scroll.isActive)
+
+        switcher.activateHints()
+        await hints.scanTask?.value
+        #expect(!scroll.isActive)
+        #expect(!scrollInput.isListening)
+        #expect(hints.isShowingHints)
+
+        switcher.activateScroll()
+        await scroll.scanTask?.value
+        #expect(!hints.isShowingHints)
+        #expect(!hintInput.isListening)
+        #expect(scroll.isActive)
+    }
+}

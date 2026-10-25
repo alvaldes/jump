@@ -4,7 +4,7 @@ import SwiftUI
 /// Items of the menu bar dropdown.
 struct MenuContent: View {
     let permission: AccessibilityPermission
-    let hintMode: HintModeController
+    let hintMode: LiveHintMode
 
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings

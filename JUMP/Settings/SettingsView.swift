@@ -38,6 +38,34 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Hint theme:", selection: Binding(
+                    get: { settings.hintAppearance.theme },
+                    set: { settings.setHintTheme($0) }
+                )) {
+                    ForEach(HintTheme.allCases, id: \.self) { theme in
+                        Text(theme.title).tag(theme)
+                    }
+                }
+                LabeledContent("Hint size:") {
+                    HStack {
+                        Slider(
+                            value: Binding(
+                                get: { Double(settings.hintAppearance.size) },
+                                set: { settings.setHintSize(CGFloat($0)) }
+                            ),
+                            in: Double(HintAppearance.sizeRange.lowerBound)...Double(HintAppearance.sizeRange.upperBound),
+                            step: 1
+                        )
+                        Text("\(Int(settings.hintAppearance.size)) pt")
+                            .monospacedDigit()
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                }
+                Text("Applies to the next hints shown.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Launch at login", isOn: Binding(
                     get: { launchAtLogin.isEnabled },
                     set: { launchAtLogin.setEnabled($0) }

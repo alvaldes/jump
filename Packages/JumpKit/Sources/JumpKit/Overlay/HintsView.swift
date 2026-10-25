@@ -25,6 +25,16 @@ final class HintsView: NSView {
         didSet { if outline != oldValue { needsDisplay = true } }
     }
 
+    var hintAppearance = HintAppearance.standard {
+        didSet {
+            guard hintAppearance != oldValue else { return }
+            metrics = Metrics(appearance: hintAppearance)
+            needsDisplay = true
+        }
+    }
+
+    private var metrics = Metrics(appearance: .standard)
+
     /// Changes which of the overlapping hints gets its preferred place.
     private var rotation = 0
 
@@ -33,15 +43,42 @@ final class HintsView: NSView {
         needsDisplay = true
     }
 
+    /// Font and spacing for one label size; the default size keeps the
+    /// original 11 pt proportions.
+    struct Metrics {
+        let font: NSFont
+        let horizontalPadding: CGFloat
+        let verticalPadding: CGFloat
+        let kerning: CGFloat
+
+        init(appearance: HintAppearance) {
+            let scale = appearance.size / HintAppearance.standard.size
+            font = .monospacedSystemFont(ofSize: appearance.size, weight: .semibold)
+            horizontalPadding = 6 * scale
+            verticalPadding = 2.5 * scale
+            kerning = 0.6 * scale
+        }
+
+        func label(_ label: String, typed: String, palette: HintPalette) -> NSAttributedString {
+            let text = NSMutableAttributedString(string: label, attributes: [
+                .font: font,
+                .foregroundColor: palette.text,
+                .kern: kerning,
+            ])
+            text.addAttribute(.foregroundColor, value: palette.typed, range: NSRange(location: 0, length: typed.utf16.count))
+            return text
+        }
+
+        func pillSize(for text: NSAttributedString) -> CGSize {
+            let textSize = text.size()
+            return CGSize(
+                width: ceil(textSize.width + horizontalPadding * 2),
+                height: ceil(textSize.height + verticalPadding * 2)
+            )
+        }
+    }
+
     private enum Style {
-        static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
-        static let textColor = NSColor.white
-        static let typedColor = NSColor(white: 1, alpha: 0.4)
-        static let fill = NSColor(white: 0.08, alpha: 0.9)
-        static let border = NSColor(white: 1, alpha: 0.18)
-        static let horizontalPadding: CGFloat = 6
-        static let verticalPadding: CGFloat = 2.5
-        static let kerning: CGFloat = 0.6
         static let shadow: NSShadow = {
             let shadow = NSShadow()
             shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
@@ -52,8 +89,9 @@ final class HintsView: NSView {
     }
 
     /// Draws one label off screen so fonts and glyph caches are loaded.
-    static func warmUpTextRendering() {
+    static func warmUpTextRendering(_ appearance: HintAppearance) {
         let view = HintsView(frame: CGRect(x: 0, y: 0, width: 64, height: 32))
+        view.hintAppearance = appearance
         view.items = [Item(label: "JU", anchor: HintAnchor(point: CGPoint(x: 32, y: 16), alignment: .center),
                            elementFrame: view.bounds)]
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
@@ -82,16 +120,18 @@ final class HintsView: NSView {
             visible.reverse()
         }
 
-        let texts = visible.map(attributedLabel)
+        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let palette = hintAppearance.theme.palette(isDark: isDark, accent: .controlAccentColor)
+        let texts = visible.map { metrics.label($0.label, typed: typed, palette: palette) }
         let rects = HintLayout.place(zip(visible, texts).map { item, text in
-            HintLayout.Request(size: pillSize(for: text), anchor: item.anchor, elementFrame: item.elementFrame)
+            HintLayout.Request(size: metrics.pillSize(for: text), anchor: item.anchor, elementFrame: item.elementFrame)
         })
 
         for (text, rect) in zip(texts, rects) {
             // Whole points (plus half for the 1 pt stroke) keep edges crisp.
             let pill = CGRect(origin: CGPoint(x: rect.minX.rounded() + 0.5, y: rect.minY.rounded() + 0.5), size: rect.size)
             guard pill.intersects(dirtyRect) else { continue }
-            drawPill(pill, text: text)
+            drawPill(pill, text: text, palette: palette)
         }
     }
 
@@ -105,36 +145,18 @@ final class HintsView: NSView {
         path.stroke()
     }
 
-    private func attributedLabel(for item: Item) -> NSAttributedString {
-        let text = NSMutableAttributedString(string: item.label, attributes: [
-            .font: Style.font,
-            .foregroundColor: Style.textColor,
-            .kern: Style.kerning,
-        ])
-        text.addAttribute(.foregroundColor, value: Style.typedColor, range: NSRange(location: 0, length: typed.utf16.count))
-        return text
-    }
-
-    private func pillSize(for text: NSAttributedString) -> CGSize {
-        let textSize = text.size()
-        return CGSize(
-            width: ceil(textSize.width + Style.horizontalPadding * 2),
-            height: ceil(textSize.height + Style.verticalPadding * 2)
-        )
-    }
-
-    private func drawPill(_ pill: CGRect, text: NSAttributedString) {
+    private func drawPill(_ pill: CGRect, text: NSAttributedString, palette: HintPalette) {
         let path = NSBezierPath(roundedRect: pill, xRadius: pill.height / 2, yRadius: pill.height / 2)
         NSGraphicsContext.saveGraphicsState()
         Style.shadow.set()
-        Style.fill.setFill()
+        palette.fill.setFill()
         path.fill()
         NSGraphicsContext.restoreGraphicsState()
 
-        Style.border.setStroke()
+        palette.border.setStroke()
         path.lineWidth = 1
         path.stroke()
 
-        text.draw(at: CGPoint(x: pill.minX + Style.horizontalPadding, y: pill.minY + Style.verticalPadding))
+        text.draw(at: CGPoint(x: pill.minX + metrics.horizontalPadding, y: pill.minY + metrics.verticalPadding))
     }
 }

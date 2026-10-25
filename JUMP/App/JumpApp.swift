@@ -18,7 +18,7 @@ struct JumpApp: App {
         let permission = AccessibilityPermission()
         let settings = JumpSettings()
         // One overlay for both modes: they never show at the same time.
-        let overlay = HintOverlay()
+        let overlay = HintOverlay(hintAppearance: { settings.hintAppearance })
         let services = AppServices(permission: permission, overlay: overlay)
         let webAccessibility = services.webAccessibility
 

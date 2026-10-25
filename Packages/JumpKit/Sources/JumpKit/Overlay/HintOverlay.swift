@@ -30,7 +30,12 @@ public final class HintOverlay {
         return panels.contains { $0 === window }
     }
 
-    public init() {}
+    /// Read on every `show`, so appearance changes apply to the next hints.
+    private let hintAppearance: () -> HintAppearance
+
+    public init(hintAppearance: @escaping () -> HintAppearance = { .standard }) {
+        self.hintAppearance = hintAppearance
+    }
 
     /// Creates the panels and warms up text rendering ahead of the first
     /// hotkey press, which otherwise pays ~45 ms for it. Call at launch and
@@ -40,7 +45,7 @@ public final class HintOverlay {
         // goes to hint mode; `show` resyncs them next time anyway.
         guard !isVisible else { return }
         syncPanels(with: NSScreen.screens)
-        HintsView.warmUpTextRendering()
+        HintsView.warmUpTextRendering(hintAppearance())
         // The window server allocates a panel's backing store the first time it
         // is shown. Showing the empty, transparent, click-through panels once
         // now moves that cost out of the first hotkey press.
@@ -61,8 +66,10 @@ public final class HintOverlay {
         let primaryHeight = primary.frame.height
         let focus = focusPoint.map { ScreenGeometry.appKitPoint(fromAX: $0, primaryScreenHeight: primaryHeight) }
 
+        let appearance = hintAppearance()
         for panel in panels {
             let screenFrame = panel.frame
+            panel.hintsView.hintAppearance = appearance
             panel.hintsView.typed = ""
             panel.hintsView.outline = nil
             panel.hintsView.items = hints.compactMap { hint in

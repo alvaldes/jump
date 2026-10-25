@@ -232,4 +232,19 @@ struct WindowFocusChangeTests {
         #expect(!WindowFocusChange.leftTarget(initial: "editor", current: String?.none))
         #expect(!WindowFocusChange.leftTarget(initial: String?.none, current: "terminal"))
     }
+
+    // Changes while the observer registers (before any notification can arrive).
+
+    @Test func aWindowSwitchDuringRegistrationLeavesTheTarget() {
+        #expect(WindowFocusChange.leftDuringRegistration(initial: "editor", current: "terminal", appHidden: false))
+    }
+
+    @Test func hidingTheAppDuringRegistrationLeavesTheTarget() {
+        #expect(WindowFocusChange.leftDuringRegistration(initial: "editor", current: "editor", appHidden: true))
+    }
+
+    @Test func nothingChangingDuringRegistrationKeepsTheTarget() {
+        #expect(!WindowFocusChange.leftDuringRegistration(initial: "editor", current: "editor", appHidden: false))
+        #expect(!WindowFocusChange.leftDuringRegistration(initial: "editor", current: String?.none, appHidden: false))
+    }
 }

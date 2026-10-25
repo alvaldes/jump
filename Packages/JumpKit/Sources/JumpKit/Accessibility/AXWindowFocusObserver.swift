@@ -9,6 +9,12 @@ nonisolated enum WindowFocusChange {
         guard let initial, let current else { return false }
         return current != initial
     }
+
+    /// Notifications only arrive once registration finishes, so a switch or
+    /// a hidden app in the meantime is caught by comparing before and after.
+    static func leftDuringRegistration<Window: Equatable>(initial: Window?, current: Window?, appHidden: Bool) -> Bool {
+        appHidden || leftTarget(initial: initial, current: current)
+    }
 }
 
 /// Watches the target app through the accessibility API: another of its
@@ -19,6 +25,9 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
     private nonisolated static let leaveNotifications = [kAXApplicationDeactivatedNotification, kAXApplicationHiddenNotification]
     /// Reads after registration run on the main thread; a busy app must not stall it.
     private nonisolated static let messagingTimeout: Float = 0.1
+    /// Registration runs off the main thread, where waiting is harmless; right
+    /// after the overlay takes the keyboard, apps answer slower than 0.1 s.
+    private nonisolated static let registrationTimeout: Float = 1
 
     private var observer: AXObserver?
     private var app: AXUIElement?
@@ -51,6 +60,12 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
                 observer = registration.observer
                 app = registration.app
                 initialWindow = registration.initialWindow
+                if WindowFocusChange.leftDuringRegistration(
+                    initial: registration.initialWindow, current: registration.windowAfter,
+                    appHidden: registration.hiddenAfter
+                ) {
+                    self.onFocusLeft?()
+                }
             }
         }
     }
@@ -59,18 +74,28 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
         let observer: AXObserver
         let app: AXUIElement
         let initialWindow: AXUIElement?
+        /// Read once notifications are registered.
+        let windowAfter: AXUIElement?
+        let hiddenAfter: Bool
     }
 
     private nonisolated static func register(pid: pid_t, refcon: UnsafeMutableRawPointer) -> Registration? {
         var created: AXObserver?
         guard AXObserverCreate(pid, callback, &created) == .success, let created else { return nil }
+        // A separate element: messaging timeouts are per element, and reads
+        // on the main thread later keep the short one.
+        let registering = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(registering, registrationTimeout)
+        let initialWindow: AXUIElement? = AXNode.copyAttribute(kAXFocusedWindowAttribute, of: registering)
+        for name in windowNotifications + leaveNotifications {
+            AXObserverAddNotification(created, registering, name as CFString, refcon)
+        }
+        let windowAfter: AXUIElement? = AXNode.copyAttribute(kAXFocusedWindowAttribute, of: registering)
+        let hiddenAfter: Bool = AXNode.copyAttribute(kAXHiddenAttribute, of: registering) ?? false
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, messagingTimeout)
-        for name in windowNotifications + leaveNotifications {
-            AXObserverAddNotification(created, app, name as CFString, refcon)
-        }
-        let window: AXUIElement? = AXNode.copyAttribute(kAXFocusedWindowAttribute, of: app)
-        return Registration(observer: created, app: app, initialWindow: window)
+        return Registration(observer: created, app: app, initialWindow: initialWindow,
+                            windowAfter: windowAfter, hiddenAfter: hiddenAfter)
     }
 
     public func stop() {

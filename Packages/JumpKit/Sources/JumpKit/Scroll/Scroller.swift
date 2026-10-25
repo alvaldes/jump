@@ -29,10 +29,10 @@ public final class Scroller {
     private var timer: Timer?
     private let writer = AccessibilityWriter()
 
-    /// Called on the main thread when an accessibility read or write fails
-    /// (the app rejected it, the scroll bar went away), so the caller can
-    /// switch the area to wheel events.
-    public var onAccessibilityFailure: (() -> Void)?
+    /// Called on the main thread with the failing control when the app rejects
+    /// an accessibility read or write, so the caller can switch that area to
+    /// wheel events. Not called when there is simply nothing to scroll.
+    public var onAccessibilityFailure: ((AXScrollControl) -> Void)?
 
     public init() {}
 
@@ -53,7 +53,7 @@ public final class Scroller {
             let report = failureReporter()
             // A one-shot command must not be dropped like a repeating tick.
             writer.submit(dropIfBusy: false) {
-                if !control.scrollToEdge(top: top) { report() }
+                if control.scrollToEdge(top: top) == .failed { report(control) }
             }
         case .wheel:
             Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance,
@@ -73,7 +73,7 @@ public final class Scroller {
             let report = failureReporter()
             return {
                 writer.submit {
-                    if !control.scroll(direction, pixels: CGFloat(distance)) { report() }
+                    if control.scroll(direction, pixels: CGFloat(distance)) == .failed { report(control) }
                 }
             }
         case .wheel:
@@ -83,9 +83,9 @@ public final class Scroller {
     }
 
     /// A thread-safe way for background writes to reach `onAccessibilityFailure`.
-    private func failureReporter() -> @Sendable () -> Void {
-        { [weak self] in
-            Task { @MainActor in self?.onAccessibilityFailure?() }
+    private func failureReporter() -> @Sendable (AXScrollControl) -> Void {
+        { [weak self] control in
+            Task { @MainActor in self?.onAccessibilityFailure?(control) }
         }
     }
 

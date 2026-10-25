@@ -40,7 +40,7 @@ final class ScrollModeController {
     init(permission: AccessibilityPermission, overlay: HintOverlay) {
         self.permission = permission
         self.overlay = overlay
-        scroller.onAccessibilityFailure = { [weak self] in self?.fallBackToWheel() }
+        scroller.onAccessibilityFailure = { [weak self] control in self?.fallBackToWheel(after: control) }
     }
 
     /// Bound to the scroll-mode hotkey.
@@ -136,8 +136,9 @@ final class ScrollModeController {
 
     /// The app stopped accepting scroll bar writes: continue with wheel events,
     /// including a scroll the user is still holding.
-    private func fallBackToWheel() {
-        guard isActive, case .accessibility = output else { return }
+    private func fallBackToWheel(after failed: AXScrollControl) {
+        // A late report about an area the user already left with Tab is stale.
+        guard isActive, case .accessibility(let current) = output, current == failed else { return }
         logger.notice("Accessibility scrolling failed; using wheel events for this area")
         targets[activeIndex].control = nil
         useWheel(for: targets[activeIndex].area)

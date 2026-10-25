@@ -9,6 +9,15 @@ public nonisolated struct ScrollTarget: Sendable {
     public var control: AXScrollControl?
 }
 
+/// What happened to one scroll request.
+public nonisolated enum ScrollOutcome: Sendable, Equatable {
+    case scrolled
+    /// Nothing to do: no scroll bar on that axis, or the content fits.
+    case unavailable
+    /// The app rejected the read or write: switch to wheel events.
+    case failed
+}
+
 /// Converts a pixel distance into a scroll bar value (0 = start, 1 = end).
 public nonisolated enum ScrollMath {
     /// Returns `nil` when the content fits and cannot scroll.
@@ -22,7 +31,7 @@ public nonisolated enum ScrollMath {
 /// Scrolls an `AXScrollArea` by writing its scroll bars' values through the
 /// accessibility API. Unlike wheel events, this does not depend on what is
 /// under the pointer, so the user can move the mouse freely.
-public nonisolated struct AXScrollControl: @unchecked Sendable {
+public nonisolated struct AXScrollControl: @unchecked Sendable, Equatable {
     // AXUIElement handles are immutable and the AX API is thread-safe.
     private let area: AXUIElement
     private let verticalBar: AXUIElement?
@@ -45,29 +54,37 @@ public nonisolated struct AXScrollControl: @unchecked Sendable {
         return control
     }
 
-    /// Moves by `pixels` toward `direction`. Returns `false` if that axis cannot scroll.
+    /// Two controls are equal when they drive the same scroll area.
+    public static func == (lhs: AXScrollControl, rhs: AXScrollControl) -> Bool {
+        CFEqual(lhs.area, rhs.area)
+    }
+
+    /// Moves by `pixels` toward `direction`.
     @discardableResult
-    public func scroll(_ direction: ScrollDirection, pixels: CGFloat) -> Bool {
+    public func scroll(_ direction: ScrollDirection, pixels: CGFloat) -> ScrollOutcome {
         let isVertical = direction == .up || direction == .down
-        guard let bar = isVertical ? verticalBar : horizontalBar,
-              let current: Double = AXNode.copyAttribute("AXValue", of: bar)
-        else { return false }
+        // `h`/`l` on a list that only scrolls vertically is not an error.
+        guard let bar = isVertical ? verticalBar : horizontalBar else { return .unavailable }
+        guard let current: Double = AXNode.copyAttribute("AXValue", of: bar) else { return .failed }
         // The document can grow while it loads, so its size is read each time.
         let document = documentSize()
+        guard document != .zero else { return .failed }
         let towardEnd = direction == .down || direction == .right
         guard let next = ScrollMath.nextValue(
             current: current,
             pixels: towardEnd ? pixels : -pixels,
             documentLength: isVertical ? document.height : document.width,
             visibleLength: isVertical ? visibleSize.height : visibleSize.width
-        ) else { return false }
+        ) else { return .unavailable }
         return AXUIElementSetAttributeValue(bar, "AXValue" as CFString, NSNumber(value: next)) == .success
+            ? .scrolled : .failed
     }
 
     @discardableResult
-    public func scrollToEdge(top: Bool) -> Bool {
-        guard let verticalBar else { return false }
+    public func scrollToEdge(top: Bool) -> ScrollOutcome {
+        guard let verticalBar else { return .unavailable }
         return AXUIElementSetAttributeValue(verticalBar, "AXValue" as CFString, NSNumber(value: top ? 0.0 : 1.0)) == .success
+            ? .scrolled : .failed
     }
 
     private func documentSize() -> CGSize {

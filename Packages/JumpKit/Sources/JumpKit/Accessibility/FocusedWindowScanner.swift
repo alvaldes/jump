@@ -6,6 +6,9 @@ public enum FocusedWindowScanError: Error, Equatable {
 
 /// Scans the focused window of an app, off the main thread.
 public nonisolated enum FocusedWindowScanner {
+    /// Extra time after the scroll-area search for preparing their controls.
+    static let controlPreparationBudget: Duration = .milliseconds(100)
+
     /// The first accessibility call of the process sets up its connection to
     /// the AX system (~15-20 ms). Doing a cheap one at launch moves that cost
     /// out of the first hotkey press.
@@ -47,7 +50,13 @@ public nonisolated enum FocusedWindowScanner {
         guard let window: AXUIElement = AXNode.copyAttribute("AXFocusedWindow", of: app.element) else {
             throw FocusedWindowScanError.noFocusedWindow
         }
-        return ScrollAreaFinder().find(in: AXNode(window), deadline: deadline, screens: screens)
-            .map { ScrollTarget(area: $0, control: AXScrollControl.make(for: $0.node)) }
+        let areas = ScrollAreaFinder().find(in: AXNode(window), deadline: deadline, screens: screens)
+        // Preparing controls costs a few AX calls per area; past this point a
+        // slow app gets wheel scrolling instead of delaying scroll mode further.
+        let controlDeadline = deadline.advanced(by: controlPreparationBudget)
+        return areas.map { area in
+            let control = ContinuousClock.now < controlDeadline ? AXScrollControl.make(for: area.node) : nil
+            return ScrollTarget(area: area, control: control)
+        }
     }
 }

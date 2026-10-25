@@ -138,6 +138,7 @@ if arguments.contains("--ax-scroll") {
     print("bottom \(position())")
     control.scrollToEdge(top: true)
     print("top \(position())")
+    print("left 16 px on this area: \(control.scroll(.left, pixels: 16))")
     exit(0)
 }
 

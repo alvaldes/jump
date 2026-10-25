@@ -18,20 +18,27 @@ public nonisolated enum ElementActions {
 
     /// Synthesizes the action as pointer events at `point`: `press` is a
     /// plain left click. Also used by text search, which has no element to press.
-    static func click(_ action: HintAction, at point: CGPoint) async {
+    /// Every click first waits for the modifiers that chose it to be released.
+    static func click(
+        _ action: HintAction,
+        at point: CGPoint,
+        waitForRelease: @Sendable () async -> Void = { await ModifierRelease.wait() },
+        post: @Sendable (CGPoint, CGMouseButton, Int) -> Void = { click(at: $0, button: $1, count: $2) },
+        movePointer: @Sendable (CGPoint) -> Void = { Pointer.move(to: $0) }
+    ) async {
         if case .moveCursor = action {
-            return Pointer.move(to: point)
+            return movePointer(point)
         }
-        await ModifierRelease.wait()
+        await waitForRelease()
         switch action {
         case .press:
-            click(at: point, button: .left, count: 1)
+            post(point, .left, 1)
         case .rightClick:
-            click(at: point, button: .right, count: 1)
+            post(point, .right, 1)
         case .doubleClick:
-            click(at: point, button: .left, count: 2)
+            post(point, .left, 2)
         case .moveCursor:
-            Pointer.move(to: point)
+            movePointer(point)
         }
     }
 

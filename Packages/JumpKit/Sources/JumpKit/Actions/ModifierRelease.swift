@@ -21,7 +21,8 @@ public nonisolated enum ModifierRelease {
         readFlags: @Sendable () -> CGEventFlags = { CGEventSource.flagsState(.hidSystemState) },
         sleep: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     ) async -> Bool {
-        let attempts = Int(timeout / poll)
+        // A zero interval would divide by zero: check once.
+        let attempts = poll > .zero ? Int(timeout / poll) : 0
         for attempt in 0...attempts {
             if !holdsModifiers(readFlags()) { return true }
             if attempt < attempts { await sleep(poll) }

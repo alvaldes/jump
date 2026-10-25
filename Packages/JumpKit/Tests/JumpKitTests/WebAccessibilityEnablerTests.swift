@@ -1,3 +1,5 @@
+import Dispatch
+import Synchronization
 import Testing
 @testable import JumpKit
 
@@ -24,6 +26,11 @@ private nonisolated final class FakeApps: @unchecked Sendable {
     @MainActor func enabler() -> WebAccessibilityEnabler {
         WebAccessibilityEnabler(setAttribute: setter, readAttribute: reader)
     }
+}
+
+/// Thread-safe write log for tests whose writes run while the test continues.
+private final class WriteLog: Sendable {
+    let writes = Mutex<[(attribute: String, value: Bool)]>([])
 }
 
 @Suite("WebAccessibilityEnabler")
@@ -113,5 +120,96 @@ struct WebAccessibilityEnablerTests {
 
         await enabler.enable(pid: 10, bundleIdentifier: "md.obsidian")
         #expect(apps.writes.count == 2, "a new app with the same pid is enabled")
+    }
+
+    @Test(arguments: [
+        "com.google.Chrome", "com.google.Chrome.beta", "com.google.Chrome.dev", "com.google.Chrome.canary",
+        "org.chromium.Chromium", "com.brave.Browser", "com.microsoft.edgemac", "com.vivaldi.Vivaldi",
+        "com.operasoftware.Opera", "company.thebrowser.Browser",
+    ])
+    func everyKnownChromiumBrowserFallsBackToEnhancedUserInterface(bundleIdentifier: String) async {
+        let apps = FakeApps()
+        apps.supported[20] = ["AXEnhancedUserInterface"]
+        let enabler = apps.enabler()
+
+        await enabler.enable(pid: 20, bundleIdentifier: bundleIdentifier)
+
+        #expect(apps.writes.map(\.attribute) == ["AXManualAccessibility", "AXEnhancedUserInterface"])
+        #expect(apps.writes.allSatisfy { write in write.value })
+    }
+
+    @Test func chromiumBrowsersThatAcceptManualAccessibilityKeepEnhancedUserInterfaceOff() async {
+        // Current Chromium honors the Electron switch, so the window-breaking one is not needed.
+        let apps = FakeApps()
+        apps.supported[20] = ["AXManualAccessibility", "AXEnhancedUserInterface"]
+        let enabler = apps.enabler()
+
+        await enabler.enable(pid: 20, bundleIdentifier: "com.google.Chrome")
+        enabler.restoreAll()
+
+        #expect(apps.writes.map(\.attribute) == ["AXManualAccessibility", "AXManualAccessibility"])
+        #expect(apps.writes.map(\.value) == [true, false])
+    }
+
+    @Test func appsWithoutABundleIdentifierAreNotTreatedAsBrowsers() async {
+        let apps = FakeApps()
+        apps.supported[50] = ["AXEnhancedUserInterface"]
+        let enabler = apps.enabler()
+
+        await enabler.enable(pid: 50, bundleIdentifier: nil)
+
+        #expect(apps.writes.map(\.attribute) == ["AXManualAccessibility"])
+    }
+
+    @Test func rejectedWritesAreNeitherRetriedNorRestored() async {
+        let apps = FakeApps()
+        let enabler = apps.enabler()
+
+        await enabler.enable(pid: 20, bundleIdentifier: "com.google.Chrome")
+        await enabler.enable(pid: 20, bundleIdentifier: "com.google.Chrome")
+        enabler.restoreAll()
+
+        #expect(apps.writes.map(\.attribute) == ["AXManualAccessibility", "AXEnhancedUserInterface"])
+        #expect(apps.writes.allSatisfy { write in write.value })
+    }
+
+    @Test func restoringTwiceTurnsEachAttributeOffOnce() async {
+        let apps = FakeApps()
+        apps.supported[10] = ["AXManualAccessibility"]
+        let enabler = apps.enabler()
+        await enabler.enable(pid: 10, bundleIdentifier: "md.obsidian")
+
+        enabler.restoreAll()
+        enabler.restoreAll()
+
+        #expect(apps.writes.map(\.value) == [true, false])
+    }
+
+    @Test func anAppThatQuitsWhileBeingEnabledIsNeverRestored() async {
+        // The writes run off the main actor; the app can quit (and be forgotten) meanwhile.
+        let log = WriteLog()
+        let (entered, enteredContinuation) = AsyncStream<Void>.makeStream()
+        let release = DispatchSemaphore(value: 0)
+        let enabler = WebAccessibilityEnabler(
+            setAttribute: { _, attribute, value in
+                log.writes.withLock { $0.append((attribute, value)) }
+                if value {
+                    enteredContinuation.yield()
+                    release.wait()
+                }
+                return true
+            },
+            readAttribute: { _, _ in nil }
+        )
+
+        let enabling = Task { await enabler.enable(pid: 10, bundleIdentifier: "md.obsidian") }
+        for await _ in entered { break }
+        enabler.forget(pid: 10)
+        release.signal()
+        await enabling.value
+        enabler.restoreAll()
+
+        #expect(log.writes.withLock { $0.map(\.attribute) } == ["AXManualAccessibility"])
+        #expect(log.writes.withLock { $0.map(\.value) } == [true])
     }
 }

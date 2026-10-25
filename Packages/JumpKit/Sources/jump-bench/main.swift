@@ -2,6 +2,7 @@
 // time goes, so latency work is driven by numbers.
 //
 // Usage: swift run -c release --package-path Packages/JumpKit jump-bench <app name> [runs] [--warm]
+//        jump-bench text <app name> [runs] [--dump <file>]   (text search spike, see TextBench.swift)
 // The calling terminal needs Accessibility access.
 //
 // Runs are spaced by a second by default: apps drop their accessibility caches
@@ -88,6 +89,14 @@ nonisolated struct TimedNode: AccessibilityNode {
 }
 
 let arguments = CommandLine.arguments
+if arguments.count >= 2, arguments[1] == "text" {
+    // Async (ScreenCaptureKit, Vision); the main queue keeps running for it.
+    Task {
+        await runTextBench(arguments: arguments)
+        exit(0)
+    }
+    dispatchMain()
+}
 guard arguments.count >= 2 else {
     print("usage: jump-bench <app name> [runs]")
     exit(2)

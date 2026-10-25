@@ -92,8 +92,10 @@ struct ScrollModeLifecycleTests {
     @Test func hotkeyDuringTheSearchCancelsIt() async {
         let mode = makeMode()
         mode.toggle()
+        // Keep the search: the second press clears the mode's reference to it.
+        let search = mode.scanTask
         mode.toggle()
-        await mode.scanTask?.value
+        await search?.value
         #expect(!mode.isActive)
         #expect(overlay.outlines.isEmpty)
     }

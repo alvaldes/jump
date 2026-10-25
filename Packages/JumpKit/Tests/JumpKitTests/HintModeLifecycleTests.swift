@@ -92,8 +92,10 @@ struct HintModeLifecycleTests {
     @Test func hotkeyDuringTheScanShowsNothing() async {
         let mode = makeMode()
         mode.toggle()
+        // Keep the scan: the second press clears the mode's reference to it.
+        let scan = mode.scanTask
         mode.toggle()
-        await mode.scanTask?.value
+        await scan?.value
         #expect(overlay.shownHints.isEmpty)
         #expect(!mode.isShowingHints)
     }

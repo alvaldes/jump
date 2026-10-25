@@ -159,6 +159,9 @@ public final class AppKitModeInput: ModeInputSource {
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
     private var keyLossObserver: (any NSObjectProtocol)?
+    /// Bumped on every start and stop, so a deferred key-loss check from an
+    /// earlier session cannot end a newer one.
+    private var session = 0
 
     public init(overlay: HintOverlay) {
         self.overlay = overlay
@@ -166,6 +169,8 @@ public final class AppKitModeInput: ModeInputSource {
 
     public func start(_ handler: ModeInputHandler) {
         stop()
+        session += 1
+        let thisSession = session
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
             if event.type == .keyDown {
                 handler.keyDown(KeyPress(event))
@@ -186,20 +191,22 @@ public final class AppKitModeInput: ModeInputSource {
             forName: NSWindow.didResignKeyNotification,
             object: nil,
             queue: .main
-        ) { [overlay] notification in
+        ) { [weak self, overlay] notification in
             let window = notification.object as? NSWindow
             MainActor.assumeIsolated {
                 guard overlay.isOverlayWindow(window) else { return }
                 // Tab across displays moves the keyboard to another overlay
                 // panel; only report a loss when none has it after this turn.
                 DispatchQueue.main.async {
-                    if !overlay.hasKeyPanel { handler.keyboardLost() }
+                    guard self?.session == thisSession, !overlay.hasKeyPanel else { return }
+                    handler.keyboardLost()
                 }
             }
         }
     }
 
     public func stop() {
+        session += 1
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }

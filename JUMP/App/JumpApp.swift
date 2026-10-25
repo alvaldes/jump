@@ -105,8 +105,8 @@ struct JumpApp: App {
         .defaultLaunchBehavior(permission.isTrusted ? .suppressed : .presented)
 
         Settings {
-            SettingsView(settings: settings, launchAtLogin: launchAtLogin, screenRecording: screenRecording,
-                         recognizer: recognizer)
+            SettingsView(settings: settings, launchAtLogin: launchAtLogin, accessibility: permission,
+                         screenRecording: screenRecording, recognizer: recognizer)
         }
     }
 }

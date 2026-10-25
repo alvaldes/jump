@@ -1,179 +1,51 @@
 import JumpKit
-import KeyboardShortcuts
 import SwiftUI
 
+/// The Settings window: one toolbar tab per area.
 struct SettingsView: View {
     let settings: JumpSettings
     let launchAtLogin: LaunchAtLogin
+    let accessibility: AccessibilityPermission
     let screenRecording: ScreenRecordingPermission
     let recognizer: ScreenTextRecognizer
 
-    @State private var characters = ""
-    @State private var charactersRejected = false
-
     var body: some View {
-        Form {
-            Section {
-                KeyboardShortcuts.Recorder("Show hints:", name: .activateHints)
-                KeyboardShortcuts.Recorder("Scroll mode:", name: .activateScroll)
-                KeyboardShortcuts.Recorder("Search text:", name: .activateSearch)
+        TabView {
+            Tab("General", systemImage: "gearshape") {
+                GeneralSettings(settings: settings, launchAtLogin: launchAtLogin)
             }
-
-            Section {
-                Toggle("Recognize text on screen (OCR)", isOn: Binding(
-                    get: { settings.recognizesScreenText },
-                    set: { setRecognizesScreenText($0) }
-                ))
-                Text("When a window has no readable text, such as terminals, PDFs and images, text search reads it from the screen. Needs Screen Recording access.")
-                    .foregroundStyle(.secondary)
-                if settings.recognizesScreenText, !screenRecording.isGranted {
-                    Text("Allow JUMP in Screen & System Audio Recording to search text on screen; until then text search uses Accessibility only. JUMP may need to be reopened after allowing it.")
-                        .foregroundStyle(.orange)
-                    Button("Open Privacy Settings") {
-                        screenRecording.openPrivacySettings()
-                    }
-                }
+            Tab("Shortcuts", systemImage: "command") {
+                ShortcutsSettings()
             }
-
-            Section {
-                LabeledContent("Hint characters:") {
-                    TextField("Hint characters", text: $characters)
-                        .labelsHidden()
-                        .font(.body.monospaced())
-                        .multilineTextAlignment(.trailing)
-                        .onSubmit(applyCharacters)
-                }
-                if charactersRejected {
-                    Text("Use at least two different letters.")
-                        .foregroundStyle(.red)
-                } else {
-                    Text("Labels are built from these letters, first ones first. Press Return to apply.")
-                        .foregroundStyle(.secondary)
-                }
-                Button("Restore Default") {
-                    characters = HintLabels.defaultCharacters
-                    applyCharacters()
-                }
+            Tab("Appearance", systemImage: "paintpalette") {
+                AppearanceSettings(settings: settings)
             }
-
-            Section {
-                Picker("Hint theme:", selection: Binding(
-                    get: { settings.hintAppearance.theme },
-                    set: { settings.setHintTheme($0) }
-                )) {
-                    ForEach(HintTheme.allCases, id: \.self) { theme in
-                        Text(theme.title).tag(theme)
-                    }
-                }
-                LabeledContent("Hint size:") {
-                    HStack {
-                        Slider(
-                            value: Binding(
-                                get: { Double(settings.hintAppearance.size) },
-                                set: { settings.setHintSize(CGFloat($0)) }
-                            ),
-                            in: Double(HintAppearance.sizeRange.lowerBound)...Double(HintAppearance.sizeRange.upperBound),
-                            step: 1
-                        )
-                        Text("\(Int(settings.hintAppearance.size)) pt")
-                            .monospacedDigit()
-                            .frame(width: 40, alignment: .trailing)
-                    }
-                }
-                Picker("Liquid Glass:", selection: Binding(
-                    get: { settings.hintAppearance.glass },
-                    set: { settings.setHintGlass($0) }
-                )) {
-                    ForEach(HintGlass.allCases, id: \.self) { glass in
-                        Text(glass.title).tag(glass)
-                    }
-                }
-                Text("Applies to the next hints shown. Regular glass is frosted, Clear is transparent; Accent and Classic tint it.")
-                    .foregroundStyle(.secondary)
+            Tab("Behavior", systemImage: "cursorarrow.click.2") {
+                BehaviorSettings(settings: settings, screenRecording: screenRecording, recognizer: recognizer)
             }
-
-            Section {
-                Picker("Menu bar icon:", selection: Binding(
-                    get: { settings.menuBarIcon },
-                    set: { settings.setMenuBarIcon($0) }
-                )) {
-                    ForEach(MenuBarIcon.allCases, id: \.self) { icon in
-                        Label {
-                            Text(icon.title)
-                        } icon: {
-                            Image(icon.imageName)
-                        }
-                        .tag(icon)
-                    }
-                }
-                Toggle("Show in Dock", isOn: Binding(
-                    get: { settings.showInDock },
-                    set: {
-                        settings.setShowInDock($0)
-                        DockPresence.apply(settings)
-                    }
-                ))
-                Picker("Dock icon:", selection: Binding(
-                    get: { settings.appIcon },
-                    set: {
-                        settings.setAppIcon($0)
-                        DockPresence.apply(settings)
-                    }
-                )) {
-                    ForEach(AppIconChoice.allCases, id: \.self) { icon in
-                        Text(icon.title).tag(icon)
-                    }
-                }
-                .disabled(!settings.showInDock)
-                Text("The Dock icon applies while JUMP runs; Finder and Spotlight always show the official icon.")
-                    .foregroundStyle(.secondary)
+            Tab("Permissions", systemImage: "lock.shield") {
+                PermissionsSettings(accessibility: accessibility, screenRecording: screenRecording)
             }
-
-            Section {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { launchAtLogin.isEnabled },
-                    set: { launchAtLogin.setEnabled($0) }
-                ))
-                if launchAtLogin.needsApproval {
-                    Text("Allow JUMP in Login Items to finish turning this on.")
-                        .foregroundStyle(.secondary)
-                    Button("Open Login Items Settings") {
-                        launchAtLogin.openLoginItemsSettings()
-                    }
-                }
-                if let error = launchAtLogin.lastError {
-                    Text(error).foregroundStyle(.red)
-                }
+            Tab("About", systemImage: "info.circle") {
+                AboutSettings()
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 440)
-        .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            characters = settings.hintCharacters
-            launchAtLogin.refresh()
-            screenRecording.refresh()
-        }
+        .frame(width: 480)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Back from System Settings.
+            accessibility.refresh()
             screenRecording.refresh()
         }
     }
+}
 
-    /// Turning it on is the only time JUMP asks for Screen Recording.
-    private func setRecognizesScreenText(_ enabled: Bool) {
-        settings.setRecognizesScreenText(enabled)
-        guard enabled else { return }
-        if !screenRecording.isGranted {
-            screenRecording.request()
-        }
-        if screenRecording.isGranted {
-            Task { await recognizer.prefetch() }
-        }
-    }
+/// Shared layout of every tab: a grouped form sized to its content.
+struct SettingsPane<Content: View>: View {
+    @ViewBuilder let content: Content
 
-    private func applyCharacters() {
-        charactersRejected = !settings.setHintCharacters(characters)
-        characters = settings.hintCharacters
+    var body: some View {
+        Form { content }
+            .formStyle(.grouped)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

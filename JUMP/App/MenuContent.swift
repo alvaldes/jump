@@ -1,4 +1,5 @@
 import JumpKit
+import KeyboardShortcuts
 import SwiftUI
 
 /// Items of the menu bar dropdown.
@@ -10,10 +11,16 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
+    /// The hint shortcut as the user set it; it can be changed or removed.
+    private var hintPrompt: String {
+        KeyboardShortcuts.getShortcut(for: .activateHints).map { "Press \($0) to show hints" }
+            ?? "Set a shortcut in Settings to show hints"
+    }
+
     var body: some View {
         if permission.isTrusted {
             Text("Accessibility access granted")
-            Text(hintMode.lastSummary.map { "Last scan: \($0)" } ?? "Press ⌘⇧Space to show hints")
+            Text(hintMode.lastSummary.map { "Last scan: \($0)" } ?? hintPrompt)
             if let summary = searchMode.lastSummary {
                 Text("Last search: \(summary)")
             }

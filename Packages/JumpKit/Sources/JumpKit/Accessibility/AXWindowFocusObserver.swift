@@ -38,39 +38,39 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
     /// Registering with the app takes 100-180 ms right after the overlay takes
     /// the keyboard, so it runs off the main thread: hints appear first, and
     /// app switches are still caught by the workspace notification meanwhile.
+    /// The focused window is read right away (it is fast), so a switch during
+    /// registration is still compared against the window the mode started on.
     public func start(pid: pid_t, onFocusLeft: @escaping () -> Void) {
         stop()
         let generation = generation
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, Self.messagingTimeout)
+        self.app = app
         self.onFocusLeft = onFocusLeft
+        initialWindow = focusedWindow()
         nonisolated(unsafe) let refcon = Unmanaged.passUnretained(self).toOpaque()
+        nonisolated(unsafe) let element = app
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
-            guard let registration = Self.register(pid: pid, refcon: refcon) else { return }
+            guard let observer = Self.register(app: element, pid: pid, refcon: refcon) else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.generation == generation else { return }
-                CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(registration.observer), .commonModes)
-                observer = registration.observer
-                app = registration.app
-                initialWindow = registration.initialWindow
+                CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer.observer), .commonModes)
+                self.observer = observer.observer
             }
         }
     }
 
     private nonisolated struct Registration: @unchecked Sendable {
         let observer: AXObserver
-        let app: AXUIElement
-        let initialWindow: AXUIElement?
     }
 
-    private nonisolated static func register(pid: pid_t, refcon: UnsafeMutableRawPointer) -> Registration? {
+    private nonisolated static func register(app: AXUIElement, pid: pid_t, refcon: UnsafeMutableRawPointer) -> Registration? {
         var created: AXObserver?
         guard AXObserverCreate(pid, callback, &created) == .success, let created else { return nil }
-        let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, messagingTimeout)
         for name in windowNotifications + leaveNotifications {
             AXObserverAddNotification(created, app, name as CFString, refcon)
         }
-        let window: AXUIElement? = AXNode.copyAttribute(kAXFocusedWindowAttribute, of: app)
-        return Registration(observer: created, app: app, initialWindow: window)
+        return Registration(observer: created)
     }
 
     public func stop() {

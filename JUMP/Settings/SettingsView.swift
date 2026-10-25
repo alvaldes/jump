@@ -14,6 +14,7 @@ struct SettingsView: View {
             Section {
                 KeyboardShortcuts.Recorder("Show hints:", name: .activateHints)
                 KeyboardShortcuts.Recorder("Scroll mode:", name: .activateScroll)
+                KeyboardShortcuts.Recorder("Search text:", name: .activateSearch)
             }
 
             Section {

@@ -6,4 +6,7 @@ extension KeyboardShortcuts.Name {
 
     /// Enters scroll mode on the focused window.
     static let activateScroll = Self("activateScroll", initial: .init(.j, modifiers: [.command, .shift]))
+
+    /// Searches the focused window's visible text.
+    static let activateSearch = Self("activateSearch", initial: .init(.f, modifiers: [.command, .shift]))
 }

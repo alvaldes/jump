@@ -17,12 +17,13 @@ Branch: `feat/text-search` (from `main` 634a026, worktree `../jump-worktrees/tex
 
 ## Tasks
 
-- [ ] T1 · S1, S3–S8 · delegated (writer A, parallel) · core in JumpKit: `TextMatcher` (pure), search key/input state machine, `TextSearchMode<Node>` controller with fakes-based lifecycle tests, `ModeSwitcher` exclusion, AX `TextCollector` (collect, word bounds, caret placement, jump action)
+- [x] T1 · S1, S3–S8 · delegated (writer A, parallel) · core in JumpKit: `TextMatcher` (pure), search key/input state machine, `TextSearchMode<Node>` controller with fakes-based lifecycle tests, `ModeSwitcher` exclusion, AX `TextCollector` (collect, word bounds, caret placement, jump action) · 6c73902, 8680dd6, 88a68f6 · RED (stubs) → GREEN; 248 pass after merging T2
 - [x] T2 · S3, S4 · delegated (writer B, parallel) · overlay: `HintOverlay: SearchOverlayPresenting`, search box + highlights drawn in the theme (one draw pass) · 8548439 · RED (missing types) → GREEN; mutation run caught 4 breaks; 207 pass · gap: showSearch key/ordering only live (T4)
-- [ ] T3 · S2, S6, S7 · inline · app wiring: ⌘⇧F shortcut + Settings recorder, `JumpApp` / `ModeSwitcher` wiring, menu entry
+- [x] T3 · S2, S6, S7 · inline · app wiring: ⌘⇧F shortcut + Settings recorder, `JumpApp` / `ModeSwitcher` wiring, menu entry · see git log · Release build succeeds
 - [ ] T4 · S3, S8 · inline · live test with the user + latency from the log
 
 ## Log
 
 - L1 (2026-10-25): "dale, con todo lo que propusiste" (approving the text search proposal: ⌘⇧F, search box, case/diacritic-insensitive visible-text matching with theme highlights, Return/Tab/Shift-Tab/Esc, click on the word with hint modifiers, caret in text fields). Earlier: "dale con solo Accessibility primero"; backlog item "Buscar texto visible en pantalla y saltar a él."
 - L2: Spike (commit 352e9bb, cherry-picked from a351258, `jump-bench text`): AX walk 18–160 ms per window; web predicate 15 ms; AXBoundsForRange 0.1–0.3 ms per call (Ghostty unsupported); AX also returns invisible labels (AXDescription). Shared contract committed first in `Search/SearchTypes.swift` so T1 and T2 run in parallel with disjoint files. Route: two writers (Writer trigger (a): two independent units, disjoint surfaces, several minutes each; plus the long-session context backstop).
+- L3: T1 gaps (writer): ⌥-typed characters arrive as the base key (KeyPress ignores modifiers; diacritic-insensitive matching hides most cases); large text areas list matches scrolled out of view (no AXVisibleCharacterRange yet); web text fields only via the combined search-key query; Return during collection is ignored. Live read-only probe: Xcode 31 texts/165 ms, Zen 266/94 ms, System Settings 14/95 ms, Ghostty one area without word bounds. Reading-order grouping now shared (`ReadingOrder.sorted`), hint behavior unchanged.

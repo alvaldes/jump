@@ -5,6 +5,7 @@ import SwiftUI
 struct MenuContent: View {
     let permission: AccessibilityPermission
     let hintMode: LiveHintMode
+    let searchMode: LiveTextSearchMode
 
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
@@ -13,6 +14,9 @@ struct MenuContent: View {
         if permission.isTrusted {
             Text("Accessibility access granted")
             Text(hintMode.lastSummary.map { "Last scan: \($0)" } ?? "Press ⌘⇧Space to show hints")
+            if let summary = searchMode.lastSummary {
+                Text("Last search: \(summary)")
+            }
         } else {
             Button("Grant Accessibility Access…") {
                 openWindow(id: OnboardingView.windowID)

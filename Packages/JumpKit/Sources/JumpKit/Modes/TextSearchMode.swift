@@ -47,6 +47,9 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private var selected = 0
     /// Bumped on every new match list, so word bounds of an older query are dropped.
     @ObservationIgnored private var generation = 0
+    /// `Return` pressed while collecting: carried out once the text arrives,
+    /// unless the query changes first.
+    @ObservationIgnored private var pendingJump: HintAction?
 
     /// - Parameters:
     ///   - prepareApp: Runs before collecting (enables Chromium/Electron trees).
@@ -90,6 +93,7 @@ public final class TextSearchMode<Node: Sendable> {
         locateTask?.cancel()
         locateTask = nil
         generation += 1
+        pendingJump = nil
         guard isActive else { return }
         isActive = false
         runs = nil
@@ -156,6 +160,10 @@ public final class TextSearchMode<Node: Sendable> {
                 \(collected.count) texts collected in \(collectMs) ms, ready after \(totalMs) ms
                 """)
             refreshMatches()
+            if let action = pendingJump {
+                pendingJump = nil
+                jump(action)
+            }
         }
     }
 
@@ -170,6 +178,7 @@ public final class TextSearchMode<Node: Sendable> {
     private func handleKeyDown(_ press: KeyPress) {
         switch keys.handle(press) {
         case .edited:
+            pendingJump = nil
             if runs == nil {
                 overlay.showSearch(presentation())
             } else {
@@ -180,7 +189,11 @@ public final class TextSearchMode<Node: Sendable> {
         case .previous:
             moveSelection(by: -1)
         case .jump(let action):
-            jump(action)
+            if runs == nil {
+                pendingJump = action
+            } else {
+                jump(action)
+            }
         case .cancel:
             dismiss()
         case .ignored:

@@ -271,6 +271,85 @@ struct TextSearchModeLifecycleTests {
         #expect(await performed(mode).isEmpty)
     }
 
+    /// Opens the box and holds the collection until `gate` opens.
+    private func openCollecting(_ gate: Gate) async -> TextSearchMode<ModeNode> {
+        let mode = makeMode(collect: { _ in
+            await gate.pass()
+            return Self.runs
+        })
+        mode.toggle()
+        await gate.reached()
+        return mode
+    }
+
+    private func pressReturn(shift: Bool = false) {
+        input.type("\r", keyCode: 36, shift: shift)
+    }
+
+    @Test func returnDuringCollectionJumpsOnceTheTextArrives() async {
+        let gate = Gate()
+        let mode = await openCollecting(gate)
+        type("sa")
+        pressReturn(shift: true)
+        #expect(mode.isActive, "still collecting")
+        #expect(overlay.last?.status == .collecting)
+
+        gate.open()
+        await mode.scanTask?.value
+        #expect(!mode.isActive)
+        #expect(!overlay.isVisible)
+        #expect(await performed(mode) == ["rightClick save 0+2 at 10,10 20x20"])
+    }
+
+    @Test func returnDuringCollectionWithoutMatchesShowsNoMatches() async {
+        let gate = Gate()
+        let mode = await openCollecting(gate)
+        type("x")
+        pressReturn()
+        gate.open()
+        await mode.scanTask?.value
+        #expect(mode.isActive)
+        #expect(overlay.last?.status == .noMatches)
+        // The pending jump is gone: matching later does not jump.
+        input.press(keyCode: 51)
+        type("sa")
+        await settle(mode)
+        #expect(mode.isActive)
+        #expect(await performed(mode).isEmpty)
+    }
+
+    @Test func typingAfterReturnCancelsThePendingJump() async {
+        let gate = Gate()
+        let mode = await openCollecting(gate)
+        type("sa")
+        pressReturn()
+        type("l")
+        gate.open()
+        await mode.scanTask?.value
+        #expect(mode.isActive)
+        #expect(overlay.last?.query == "sal")
+        #expect(overlay.last?.status == .matches(selected: 0))
+        #expect(await performed(mode).isEmpty)
+    }
+
+    @Test(arguments: ["escape", "hotkey"])
+    func closingCancelsThePendingJump(exit: String) async {
+        let gate = Gate()
+        let mode = await openCollecting(gate)
+        type("sa")
+        pressReturn()
+        let collection = mode.scanTask
+        if exit == "escape" { input.press(keyCode: 53) } else { mode.toggle() }
+        gate.open()
+        await collection?.value
+        #expect(!mode.isActive)
+        // A new search does not inherit it either.
+        await open(mode)
+        type("sa")
+        #expect(mode.isActive)
+        #expect(await performed(mode).isEmpty)
+    }
+
     // MARK: Dismissing
 
     @Test(arguments: ["escape", "hotkey", "focus left", "keyboard lost"])

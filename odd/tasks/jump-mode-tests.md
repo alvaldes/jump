@@ -13,11 +13,12 @@ Branch: `test/mode-controllers` (from `main` df3d151) · Delivery: ask-on-risk �
 
 ## Tasks
 
-- T1 · S2 · inline · shared mode protocols, key decoding, live AppKit adapters · pending
-- T2 · S2, S4 · inline · ScrollMode in JumpKit + tests · pending
-- T3 · S2, S3 · inline · HintMode in JumpKit + tests · pending
-- T4 · S2 · inline · app wiring uses the JumpKit modes; mode coordination · pending
+- [x] T1 · S2 · inline · shared mode protocols, key decoding, live AppKit adapters · see git log · decoding RED→GREEN
+- [x] T2 · S2, S4 · inline · ScrollMode in JumpKit + tests · 72e7b2d · 16 lifecycle tests; mutations (any key-up stops, no app recheck) caught
+- [x] T3 · S2, S3 · inline · HintMode in JumpKit + tests · see git log · 14 lifecycle tests; mutations (modifiers ignored, keeps listening) caught
+- [x] T4 · S2 · inline · app wiring uses the JumpKit modes; mode coordination · d39fa62 · ModeSwitcher test; Release builds; app launches cleanly
 
 ## Log
 
 - L1 (2026-10-24): "dale, arranca con los tests de los controladores"
+- L2: Tests 104 → 135. Lifecycle tests characterize moved logic, so they passed first; each suite was mutation-tested (2 deliberate breaks each, all detected, code restored). Two of my own test expectations were wrong (labels are sorted: with "sa" the first element gets A) and were fixed. Behavior change (assumption in specs): hint mode now also exits when the overlay loses the keyboard. Old HintModeController/ScrollModeController deleted; app-wide work moved to AppServices. Not exercised live with keys (user test).

@@ -61,7 +61,11 @@ struct SettingsView: View {
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
-                Text("Applies to the next hints shown.")
+                Toggle("Liquid Glass", isOn: Binding(
+                    get: { settings.hintAppearance.glass },
+                    set: { settings.setHintGlass($0) }
+                ))
+                Text("Applies to the next hints shown. Liquid Glass tints the glass with the theme's color.")
                     .foregroundStyle(.secondary)
             }
 

@@ -86,6 +86,8 @@ public final class HintOverlay {
             panel.orderFrontRegardless()
             // Draw now rather than on the next display cycle, so the hints are
             // on screen when `show` returns (and latency measurements are honest).
+            // Liquid Glass pills are subviews, placed by layout.
+            panel.hintsView.layoutSubtreeIfNeeded()
             panel.displayIfNeeded()
         }
 

@@ -115,3 +115,64 @@ struct JumpSettingsAppearanceTests {
         #expect(JumpSettings(defaults: defaults).hintCharacters == "asdf")
     }
 }
+
+@Suite("Liquid Glass hints")
+struct GlassHintsTests {
+    private func makeView(glass: Bool) -> HintsView {
+        let view = HintsView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
+        view.hintAppearance = HintAppearance(theme: .dark, size: 11, glass: glass)
+        view.items = ["sa", "sd", "f"].enumerated().map { index, label in
+            let point = CGPoint(x: 60 + index * 100, y: 150)
+            return HintsView.Item(label: label, anchor: HintAnchor(point: point, alignment: .center),
+                                  elementFrame: CGRect(x: point.x - 20, y: point.y - 10, width: 40, height: 20))
+        }
+        view.layoutSubtreeIfNeeded()
+        return view
+    }
+
+    private func visibleGlass(in view: HintsView) -> [NSGlassEffectView] {
+        view.subviews.compactMap { $0 as? NSGlassEffectView }.filter { !$0.isHidden }
+    }
+
+    @Test func eachVisibleHintGetsAGlassPill() {
+        let view = makeView(glass: true)
+        let glass = visibleGlass(in: view)
+        #expect(glass.count == 3)
+        #expect(glass.allSatisfy { $0.cornerRadius == $0.frame.height / 2 && $0.contentView != nil })
+    }
+
+    @Test func typingHidesTheGlassOfOtherHints() {
+        let view = makeView(glass: true)
+        view.typed = "s"
+        view.layoutSubtreeIfNeeded()
+        #expect(visibleGlass(in: view).count == 2)
+    }
+
+    @Test func glassViewsAreReused() {
+        let view = makeView(glass: true)
+        let first = Set(view.subviews.map(ObjectIdentifier.init))
+        view.typed = "s"
+        view.layoutSubtreeIfNeeded()
+        view.typed = ""
+        view.layoutSubtreeIfNeeded()
+        #expect(Set(view.subviews.map(ObjectIdentifier.init)) == first)
+    }
+
+    @Test func turningGlassOffHidesEveryGlassPill() {
+        let view = makeView(glass: true)
+        view.hintAppearance = .standard
+        view.layoutSubtreeIfNeeded()
+        #expect(visibleGlass(in: view).isEmpty)
+    }
+
+    @Test func withoutGlassNoGlassViewsAreCreated() {
+        #expect(makeView(glass: false).subviews.isEmpty)
+    }
+
+    @Test func hidingEveryHintHidesTheGlass() {
+        let view = makeView(glass: true)
+        view.items = []
+        view.layoutSubtreeIfNeeded()
+        #expect(visibleGlass(in: view).isEmpty)
+    }
+}

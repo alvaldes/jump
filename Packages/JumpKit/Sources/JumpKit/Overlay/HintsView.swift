@@ -1,7 +1,9 @@
 import AppKit
 
 /// Draws every hint of one screen in a single pass (no view per hint),
-/// so hundreds of hints stay cheap to show.
+/// so hundreds of hints stay cheap to show. Liquid Glass is the exception:
+/// the window server composites it, so each visible hint gets a reused
+/// glass view instead.
 final class HintsView: NSView {
     struct Item: Equatable {
         let label: String
@@ -12,12 +14,12 @@ final class HintsView: NSView {
     }
 
     var items: [Item] = [] {
-        didSet { if items != oldValue { rotation = 0; needsDisplay = true } }
+        didSet { if items != oldValue { rotation = 0; invalidate() } }
     }
 
     /// Already typed prefix: other hints are hidden and these characters dimmed.
     var typed = "" {
-        didSet { if typed != oldValue { needsDisplay = true } }
+        didSet { if typed != oldValue { invalidate() } }
     }
 
     /// Area outlined in scroll mode, in this view's coordinates.
@@ -29,18 +31,24 @@ final class HintsView: NSView {
         didSet {
             guard hintAppearance != oldValue else { return }
             metrics = Metrics(appearance: hintAppearance)
-            needsDisplay = true
+            invalidate()
         }
     }
 
     private var metrics = Metrics(appearance: .standard)
+    private var glassPills: [NSGlassEffectView] = []
 
     /// Changes which of the overlapping hints gets its preferred place.
     private var rotation = 0
 
     func rotate() {
         rotation += 1
+        invalidate()
+    }
+
+    private func invalidate() {
         needsDisplay = true
+        needsLayout = true
     }
 
     /// Font and spacing for one label size; the default size keeps the
@@ -112,8 +120,46 @@ final class HintsView: NSView {
         if let outline {
             drawOutline(outline)
         }
+        guard !hintAppearance.glass else { return }
+        for pill in placedPills() where pill.frame.intersects(dirtyRect) {
+            drawPill(pill)
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        let pills = hintAppearance.glass ? placedPills() : []
+        while glassPills.count < pills.count {
+            let glass = NSGlassEffectView()
+            glass.contentView = GlassLabelView()
+            addSubview(glass)
+            glassPills.append(glass)
+        }
+        for (index, glass) in glassPills.enumerated() {
+            guard index < pills.count else {
+                glass.isHidden = true
+                continue
+            }
+            let pill = pills[index]
+            glass.frame = pill.frame
+            glass.cornerRadius = pill.frame.height / 2
+            // A lighter tint than the drawn fill lets the glass show through.
+            glass.tintColor = pill.palette.fill.withAlphaComponent(pill.palette.fill.alphaComponent * 0.6)
+            (glass.contentView as? GlassLabelView)?.show(pill.text, at: CGPoint(x: metrics.horizontalPadding, y: metrics.verticalPadding))
+            glass.isHidden = false
+        }
+    }
+
+    private struct Pill {
+        let text: NSAttributedString
+        let frame: CGRect
+        let palette: HintPalette
+    }
+
+    /// Visible hints with their labels and final frames.
+    private func placedPills() -> [Pill] {
         var visible = items.filter { $0.label.hasPrefix(typed) }
-        guard !visible.isEmpty else { return }
+        guard !visible.isEmpty else { return [] }
         // Earlier hints win the free spots and later ones are drawn on top, so
         // reversing the order swaps every overlapping pair.
         if rotation.isMultiple(of: 2) == false {
@@ -126,12 +172,10 @@ final class HintsView: NSView {
         let rects = HintLayout.place(zip(visible, texts).map { item, text in
             HintLayout.Request(size: metrics.pillSize(for: text), anchor: item.anchor, elementFrame: item.elementFrame)
         })
-
-        for (text, rect) in zip(texts, rects) {
+        return zip(texts, rects).map { text, rect in
             // Whole points (plus half for the 1 pt stroke) keep edges crisp.
-            let pill = CGRect(origin: CGPoint(x: rect.minX.rounded() + 0.5, y: rect.minY.rounded() + 0.5), size: rect.size)
-            guard pill.intersects(dirtyRect) else { continue }
-            drawPill(pill, text: text, palette: palette)
+            let frame = CGRect(origin: CGPoint(x: rect.minX.rounded() + 0.5, y: rect.minY.rounded() + 0.5), size: rect.size)
+            return Pill(text: text, frame: frame, palette: palette)
         }
     }
 
@@ -145,18 +189,36 @@ final class HintsView: NSView {
         path.stroke()
     }
 
-    private func drawPill(_ pill: CGRect, text: NSAttributedString, palette: HintPalette) {
-        let path = NSBezierPath(roundedRect: pill, xRadius: pill.height / 2, yRadius: pill.height / 2)
+    private func drawPill(_ pill: Pill) {
+        let frame = pill.frame
+        let path = NSBezierPath(roundedRect: frame, xRadius: frame.height / 2, yRadius: frame.height / 2)
         NSGraphicsContext.saveGraphicsState()
         Style.shadow.set()
-        palette.fill.setFill()
+        pill.palette.fill.setFill()
         path.fill()
         NSGraphicsContext.restoreGraphicsState()
 
-        palette.border.setStroke()
+        pill.palette.border.setStroke()
         path.lineWidth = 1
         path.stroke()
 
-        text.draw(at: CGPoint(x: pill.minX + metrics.horizontalPadding, y: pill.minY + metrics.verticalPadding))
+        pill.text.draw(at: CGPoint(x: frame.minX + metrics.horizontalPadding, y: frame.minY + metrics.verticalPadding))
+    }
+}
+
+/// The label inside a Liquid Glass pill.
+private final class GlassLabelView: NSView {
+    private var text = NSAttributedString()
+    private var origin = CGPoint.zero
+
+    func show(_ text: NSAttributedString, at origin: CGPoint) {
+        guard text != self.text || origin != self.origin else { return }
+        self.text = text
+        self.origin = origin
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        text.draw(at: origin)
     }
 }

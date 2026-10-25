@@ -19,6 +19,9 @@ struct JumpApp: App {
     private let switcher: ModeSwitcher<AXNode, Scroller<AXScrollControl>>
 
     init() {
+        #if DEBUG
+        SettingsSnapshot.renderIfRequested()
+        #endif
         let permission = AccessibilityPermission()
         let settings = JumpSettings()
         // One overlay for every mode: they never show at the same time.

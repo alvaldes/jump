@@ -5,17 +5,25 @@ struct AppearanceSettings: View {
     let settings: JumpSettings
 
     var body: some View {
-        SettingsPane {
-            Section {
-                Picker("Hint theme:", selection: Binding(
-                    get: { settings.hintAppearance.theme },
-                    set: { settings.setHintTheme($0) }
-                )) {
+        VStack(alignment: .leading, spacing: 18) {
+            PaneHeader(title: "Appearance", subtitle: "How hints look. Changes apply to the next hints shown.")
+
+            SettingsCard(title: "Preview", symbol: "eye") {
+                HintPreview(appearance: settings.hintAppearance)
+            }
+
+            SettingsCard(title: "Theme", symbol: "swatchpalette") {
+                HStack(spacing: 8) {
                     ForEach(HintTheme.allCases, id: \.self) { theme in
-                        Text(theme.title).tag(theme)
+                        ThemeTile(theme: theme, isSelected: settings.hintAppearance.theme == theme) {
+                            settings.setHintTheme(theme)
+                        }
                     }
                 }
-                LabeledContent("Hint size:") {
+            }
+
+            HStack(alignment: .top, spacing: 18) {
+                SettingsCard(title: "Size", symbol: "textformat.size") {
                     HStack {
                         Slider(
                             value: Binding(
@@ -30,16 +38,18 @@ struct AppearanceSettings: View {
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
-                Picker("Liquid Glass:", selection: Binding(
-                    get: { settings.hintAppearance.glass },
-                    set: { settings.setHintGlass($0) }
-                )) {
-                    ForEach(HintGlass.allCases, id: \.self) { glass in
-                        Text(glass.title).tag(glass)
+                SettingsCard(title: "Liquid Glass", symbol: "drop", subtitle: "Regular is frosted, Clear is transparent.") {
+                    Picker("", selection: Binding(
+                        get: { settings.hintAppearance.glass },
+                        set: { settings.setHintGlass($0) }
+                    )) {
+                        ForEach(HintGlass.allCases, id: \.self) { glass in
+                            Text(glass.title).tag(glass)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
                 }
-                Text("Applies to the next hints shown. Regular glass is frosted, Clear is transparent; Accent and Classic tint it.")
-                    .foregroundStyle(.secondary)
             }
         }
     }

@@ -18,7 +18,7 @@ public nonisolated enum HintTheme: String, CaseIterable, Sendable {
     ///   - isDark: Whether the overlay currently draws in a dark appearance
     ///     (only `system` depends on it).
     ///   - accent: The user's accent color (only `accent` depends on it).
-    func palette(isDark: Bool, accent: NSColor) -> HintPalette {
+    public func palette(isDark: Bool, accent: NSColor) -> HintPalette {
         switch self {
         case .dark:
             HintPalette(fill: NSColor(white: 0.08, alpha: 0.9), text: .white,
@@ -69,15 +69,15 @@ public nonisolated enum HintTheme: String, CaseIterable, Sendable {
 }
 
 /// Colors used to draw one hint label.
-nonisolated struct HintPalette: Equatable {
-    let fill: NSColor
-    let text: NSColor
+public nonisolated struct HintPalette: Equatable {
+    public let fill: NSColor
+    public let text: NSColor
     /// Already typed characters.
-    let typed: NSColor
-    let border: NSColor
+    public let typed: NSColor
+    public let border: NSColor
     /// Liquid Glass tint. Dark and light glass need none (the label color
     /// tells them apart); a strong tint would hide the glass.
-    var glassTint: NSColor? = nil
+    public var glassTint: NSColor? = nil
 
     /// WCAG contrast ratio of the text against the fill, in the worst case of
     /// whatever lies behind a translucent fill (black or white).

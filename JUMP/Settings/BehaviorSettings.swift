@@ -10,40 +10,49 @@ struct BehaviorSettings: View {
     @State private var charactersRejected = false
 
     var body: some View {
-        SettingsPane {
-            Section("Hints") {
-                LabeledContent("Hint characters:") {
+        VStack(alignment: .leading, spacing: 18) {
+            PaneHeader(title: "Behavior", subtitle: "How hints are labeled and how text search reads the screen.")
+
+            SettingsCard(title: "Hint labels", symbol: "character.textbox",
+                         subtitle: "Labels are built from these letters, first ones first.") {
+                HStack(spacing: 4) {
+                    ForEach(Array(settings.hintCharacters.uppercased().enumerated()), id: \.offset) { _, letter in
+                        Keycap(label: String(letter))
+                    }
+                }
+                HStack {
                     TextField("Hint characters", text: $characters)
-                        .labelsHidden()
                         .font(.body.monospaced())
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
                         .onSubmit(applyCharacters)
+                    Button("Apply", action: applyCharacters)
+                    Button("Restore Default") {
+                        characters = HintLabels.defaultCharacters
+                        applyCharacters()
+                    }
                 }
                 if charactersRejected {
-                    Text("Use at least two different letters.")
-                        .foregroundStyle(.red)
-                } else {
-                    Text("Labels are built from these letters, first ones first. Press Return to apply.")
-                        .foregroundStyle(.secondary)
-                }
-                Button("Restore Default") {
-                    characters = HintLabels.defaultCharacters
-                    applyCharacters()
+                    Text("Use at least two different letters.").font(.caption).foregroundStyle(.red)
                 }
             }
 
-            Section("Text Search") {
-                Toggle("Recognize text on screen (OCR)", isOn: Binding(
-                    get: { settings.recognizesScreenText },
-                    set: { setRecognizesScreenText($0) }
-                ))
-                Text("When a window has no readable text, such as terminals, PDFs and images, text search reads it from the screen. Needs Screen Recording access.")
-                    .foregroundStyle(.secondary)
+            SettingsCard(title: "Text search", symbol: "text.magnifyingglass") {
+                SettingRow(title: "Recognize text on screen (OCR)",
+                           detail: "For windows without readable text, such as terminals, PDFs and images. Needs Screen Recording.") {
+                    Toggle("", isOn: Binding(
+                        get: { settings.recognizesScreenText },
+                        set: { setRecognizesScreenText($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
                 if settings.recognizesScreenText, !screenRecording.isGranted {
-                    Text("Allow JUMP in Screen & System Audio Recording to search text on screen; until then text search uses Accessibility only. JUMP may need to be reopened after allowing it.")
-                        .foregroundStyle(.orange)
-                    Button("Open Privacy Settings") {
-                        screenRecording.openPrivacySettings()
+                    HStack(alignment: .top, spacing: 10) {
+                        StatusDot(isOn: false).padding(.top, 5)
+                        Text("Allow JUMP in Screen & System Audio Recording; until then text search uses Accessibility only. JUMP may need to be reopened.")
+                            .font(.caption)
+                        Spacer()
+                        Button("Open Privacy Settings") { screenRecording.openPrivacySettings() }
                     }
                 }
             }

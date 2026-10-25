@@ -20,7 +20,9 @@ public nonisolated enum TextMatcher {
     }
 
     private static func isVisible<Node>(_ range: NSRange, in run: TextRun<Node>) -> Bool {
-        guard let visible = run.visibleRange else { return true }
+        // Some apps report an empty range at the start when they cannot tell;
+        // an empty range further in is an area scrolled past its text.
+        guard let visible = run.visibleRange, visible.length > 0 || visible.location > 0 else { return true }
         return NSIntersectionRange(range, visible).length > 0
     }
 

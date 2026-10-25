@@ -98,12 +98,15 @@ public final class ScreenTextRecognizer {
         return Self.closestWindow(in: candidates.map(\.frame), to: frame, within: tolerance).map { candidates[$0] }
     }
 
-    /// Index of the frame closest to `frame`, if within `tolerance` points.
+    /// Index of the frame closest to `frame`, if each of its sides is within
+    /// `tolerance` points (a capture without the title bar differs on two at once).
     nonisolated static func closestWindow(in frames: [CGRect], to frame: CGRect, within tolerance: CGFloat) -> Int? {
-        guard let closest = frames.indices.min(by: { distance(frames[$0], frame) < distance(frames[$1], frame) }),
-              distance(frames[closest], frame) <= tolerance
-        else { return nil }
-        return closest
+        let near = frames.indices.filter { largestSideDifference(frames[$0], frame) <= tolerance }
+        return near.min { distance(frames[$0], frame) < distance(frames[$1], frame) }
+    }
+
+    private nonisolated static func largestSideDifference(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        max(abs(a.minX - b.minX), abs(a.minY - b.minY), abs(a.maxX - b.maxX), abs(a.maxY - b.maxY))
     }
 
     /// At the display's pixel scale: Vision misses lines at 1x.

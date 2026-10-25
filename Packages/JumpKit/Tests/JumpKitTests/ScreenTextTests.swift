@@ -128,3 +128,21 @@ struct ScreenTextWindowLookupTests {
         #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused, within: ScreenTextRecognizer.reloadedFrameTolerance) == 0)
     }
 }
+
+@Suite("Screen text window tolerance per side")
+struct ScreenTextWindowToleranceTests {
+    private let focused = CGRect(x: 100, y: 100, width: 800, height: 600)
+
+    /// A capture frame that leaves out the title bar differs on two sides at once.
+    @Test func eachSideIsCheckedOnItsOwn() {
+        let frames = [CGRect(x: 100, y: 128, width: 800, height: 572)]
+        #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused,
+                                                   within: ScreenTextRecognizer.reloadedFrameTolerance) == 0)
+    }
+
+    @Test func oneSideTooFarRejectsTheWindow() {
+        let frames = [CGRect(x: 100, y: 100, width: 800, height: 520)]
+        #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused,
+                                                   within: ScreenTextRecognizer.reloadedFrameTolerance) == nil)
+    }
+}

@@ -123,3 +123,24 @@ struct TextCollectorCoarseRunTests {
                                   value: "save", title: nil, node: 1)?.isCoarse == false)
     }
 }
+
+@Suite("TextCollector word bounds probe")
+struct TextCollectorProbeTests {
+    /// A leading line break has no width; probing it would mark a measurable area coarse.
+    @Test func probesTheFirstNonWhitespaceCharacter() {
+        #expect(TextCollector.probeRange(in: "\n\n  git status", visibleRange: nil) == NSRange(location: 4, length: 1))
+    }
+
+    @Test func probesInsideTheVisiblePart() {
+        #expect(TextCollector.probeRange(in: "first line\nsecond", visibleRange: NSRange(location: 10, length: 7))
+                == NSRange(location: 11, length: 1))
+    }
+
+    @Test func aWholeCharacterIsProbed() {
+        #expect(TextCollector.probeRange(in: "👋 hi", visibleRange: nil) == NSRange(location: 0, length: 2))
+    }
+
+    @Test func blankTextHasNothingToProbe() {
+        #expect(TextCollector.probeRange(in: " \n\t", visibleRange: nil) == nil)
+    }
+}

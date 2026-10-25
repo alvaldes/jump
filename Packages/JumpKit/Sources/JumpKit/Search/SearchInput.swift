@@ -30,8 +30,9 @@ public struct SearchInput: Sendable {
             return .edited(query)
         default:
             // ⌘ and ⌃ are app shortcuts; ⌥ only chooses the jump action, so it still
-            // types, and what the layout produced with it (`@` for ⌥2 on a Spanish layout).
-            let text = press.option ? press.typedCharacters : press.characters
+            // types. What the layout produced goes in: `@` for ⌥2 on a Spanish layout,
+            // and nothing for a dead key (the Spanish accent key), never its base character.
+            let text = press.typedCharacters
             guard !press.command, !press.control, Self.isPrintable(text) else { return .ignored }
             query += text
             return .edited(query)

@@ -28,8 +28,17 @@ struct SearchInputTests {
         #expect(input.handle(key(31, "o", typed: "ø", option: true)) == .edited("@ø"))
     }
 
-    @Test mutating func withoutOptionTheKeyCharactersStillType() {
-        #expect(input.handle(key(1, "s", typed: "S")) == .edited("s"))
+    /// What the layout produced is what goes in the box, with or without ⌥
+    /// (Caps Lock gives "S"; matching ignores case either way).
+    @Test mutating func whatTheLayoutTypedIsTyped() {
+        #expect(input.handle(key(1, "s", typed: "S")) == .edited("S"))
+    }
+
+    /// The Spanish accent key is a dead key without any modifier: it must not
+    /// add "´" to the query, or "canción" would never match.
+    @Test mutating func deadKeysWithoutOptionTypeNothing() {
+        #expect(input.handle(key(39, "´", typed: "")) == .ignored)
+        #expect(input.handle(key(31, "o", typed: "ó")) == .edited("ó"))
     }
 
     @Test mutating func optionDeadKeysTypeNothing() {

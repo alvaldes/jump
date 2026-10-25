@@ -77,4 +77,12 @@ struct TextMatcherTests {
     func anEmptyQueryMatchesNothing(query: String) {
         #expect(found(query, in: [run("some text")]).isEmpty)
     }
+
+    /// Some apps report an empty visible range when they cannot tell; that is
+    /// no information, not "nothing is visible".
+    @Test func anEmptyVisibleRangeCountsAsUnknown() {
+        let run = TextRun(text: "save the file", frame: CGRect(x: 0, y: 0, width: 100, height: 20), role: "AXTextArea",
+                          isEditable: true, visibleRange: NSRange(location: 0, length: 0), node: 1)
+        #expect(TextMatcher.matches(of: "file", in: [run]).map(\.range) == [NSRange(location: 9, length: 4)])
+    }
 }

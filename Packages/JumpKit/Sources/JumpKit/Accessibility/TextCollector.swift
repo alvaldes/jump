@@ -54,6 +54,17 @@ public nonisolated enum TextCollector {
                        visibleRange: visibleRange, isCoarse: isCoarse, node: node)
     }
 
+    /// The first character worth measuring: not whitespace (a line break has
+    /// no width), inside the visible part when the element reports one.
+    static func probeRange(in text: String, visibleRange: NSRange?) -> NSRange? {
+        let string = text as NSString
+        let bounds = NSRange(location: 0, length: string.length)
+        let searched = visibleRange.map { NSIntersectionRange($0, bounds) }.flatMap { $0.length > 0 ? $0 : nil } ?? bounds
+        let found = string.rangeOfCharacter(from: CharacterSet.whitespacesAndNewlines.inverted, range: searched)
+        guard found.location != NSNotFound else { return nil }
+        return string.rangeOfComposedCharacterSequence(at: found.location)
+    }
+
     /// A text area that cannot measure words: its matches only know the whole
     /// area, so a search prefers recognized words (OCR) over them.
     static func isCoarse(role: String, supportsWordBounds: Bool) -> Bool {
@@ -142,9 +153,10 @@ public nonisolated enum TextCollector {
     }
 
     /// Whether the element measures its text: one `AXBoundsForRange` call on
-    /// its first character.
-    private static func supportsWordBounds(_ element: AXUIElement) -> Bool {
-        var range = CFRange(location: 0, length: 1)
+    /// `probe` (see `probeRange`); no character to probe means no word to find.
+    private static func supportsWordBounds(_ element: AXUIElement, probing probe: NSRange?) -> Bool {
+        guard let probe else { return true }
+        var range = CFRange(location: probe.location, length: probe.length)
         guard let parameter = AXValueCreate(.cfRange, &range) else { return false }
         var bounds: CFTypeRef?
         guard AXUIElementCopyParameterizedAttributeValue(
@@ -242,7 +254,8 @@ public nonisolated enum TextCollector {
             let visibleRange = TextCollector.readsVisibleRange(role: role)
                 ? TextCollector.visibleCharacterRange(of: element) : nil
             let isCoarse = role == "AXTextArea"
-                && TextCollector.isCoarse(role: role, supportsWordBounds: TextCollector.supportsWordBounds(element))
+                && TextCollector.isCoarse(role: role, supportsWordBounds: TextCollector.supportsWordBounds(
+                    element, probing: value.flatMap { TextCollector.probeRange(in: $0, visibleRange: visibleRange) }))
             guard let run = TextCollector.run(role: role, frame: frame, value: value, title: title,
                                               visibleRange: visibleRange, isCoarse: isCoarse, node: AXNode(element))
             else { return }

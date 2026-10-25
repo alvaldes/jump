@@ -13,8 +13,8 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "3"
 
 packages:
   JumpKit:
@@ -36,6 +36,9 @@ targets:
       path: JUMP/Resources/Info.plist
       properties:
         CFBundleDisplayName: JUMP
+        # XcodeGen otherwise writes 1.0 (1); the version lives in the build settings above.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Copyright © 2026 JUMP contributors. GPL-3.0."

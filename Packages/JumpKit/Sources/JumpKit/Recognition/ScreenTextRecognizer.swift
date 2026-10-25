@@ -82,7 +82,7 @@ public final class ScreenTextRecognizer {
     /// center. There is no element, so no caret placement.
     @concurrent
     public nonisolated static func jump(_ action: HintAction, to match: TextMatch<ScreenText>) async {
-        ElementActions.click(action, at: ScreenTextLayout.clickPoint(for: match))
+        await ElementActions.click(action, at: ScreenTextLayout.clickPoint(for: match))
     }
 
     // MARK: Capture

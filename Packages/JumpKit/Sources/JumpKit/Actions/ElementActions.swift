@@ -10,15 +10,19 @@ public nonisolated enum ElementActions {
     public static func perform(_ action: HintAction, on element: ScannedElement<AXNode>) async {
         let point = clickPoint(role: element.role, frame: element.frame)
         if case .press = action {
-            press(element, fallbackPoint: point)
+            await press(element, fallbackPoint: point)
         } else {
-            click(action, at: point)
+            await click(action, at: point)
         }
     }
 
     /// Synthesizes the action as pointer events at `point`: `press` is a
     /// plain left click. Also used by text search, which has no element to press.
-    static func click(_ action: HintAction, at point: CGPoint) {
+    static func click(_ action: HintAction, at point: CGPoint) async {
+        if case .moveCursor = action {
+            return Pointer.move(to: point)
+        }
+        await ModifierRelease.wait()
         switch action {
         case .press:
             click(at: point, button: .left, count: 1)
@@ -45,7 +49,7 @@ public nonisolated enum ElementActions {
 
     /// Accessibility first: no cursor movement, and it works on partly covered
     /// elements. Falls back to a real click for elements without `AXPress`.
-    private static func press(_ element: ScannedElement<AXNode>, fallbackPoint: CGPoint) {
+    private static func press(_ element: ScannedElement<AXNode>, fallbackPoint: CGPoint) async {
         let target = element.node.element
         if textInputRoles.contains(element.role),
            AXUIElementSetAttributeValue(target, "AXFocused" as CFString, kCFBooleanTrue) == .success {
@@ -54,6 +58,7 @@ public nonisolated enum ElementActions {
         if AXUIElementPerformAction(target, "AXPress" as CFString) == .success {
             return
         }
+        await ModifierRelease.wait()
         click(at: fallbackPoint, button: .left, count: 1)
     }
 

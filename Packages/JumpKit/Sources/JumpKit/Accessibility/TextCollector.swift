@@ -126,9 +126,9 @@ public nonisolated enum TextCollector {
         case .placeCaret(let location):
             if placeCaret(in: match.run.node.element, at: location) { return }
             // The input refused focus: a click still lands in it.
-            ElementActions.click(.press, at: CGPoint(x: match.frame.midX, y: match.frame.midY))
+            await ElementActions.click(.press, at: CGPoint(x: match.frame.midX, y: match.frame.midY))
         case .click(let action, let point):
-            ElementActions.click(action, at: point)
+            await ElementActions.click(action, at: point)
         }
     }
 

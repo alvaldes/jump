@@ -72,6 +72,7 @@ public final class HintOverlay {
             panel.hintsView.hintAppearance = appearance
             panel.hintsView.typed = ""
             panel.hintsView.outline = nil
+            panel.hintsView.search = nil
             panel.hintsView.items = hints.compactMap { hint in
                 let point = ScreenGeometry.appKitPoint(fromAX: hint.anchor.point, primaryScreenHeight: primaryHeight)
                 guard screenFrame.contains(point) else { return nil }
@@ -108,6 +109,7 @@ public final class HintOverlay {
 
         for panel in panels {
             panel.hintsView.items = []
+            panel.hintsView.search = nil
             panel.hintsView.outline = panel.frame.intersects(appKitFrame)
                 ? appKitFrame.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
                 : nil
@@ -135,16 +137,71 @@ public final class HintOverlay {
         for panel in panels {
             panel.hintsView.items = []
             panel.hintsView.outline = nil
+            panel.hintsView.search = nil
             panel.orderOut(nil)
         }
         isVisible = false
     }
 
-    /// Rebuilds the panels only when the display arrangement changed.
     private func syncPanels(with screens: [NSScreen]) {
-        guard panels.map(\.frame) != screens.map(\.frame) else { return }
+        syncPanels(withFrames: screens.map(\.frame))
+    }
+
+    /// Rebuilds the panels only when the display arrangement changed.
+    func syncPanels(withFrames frames: [CGRect]) {
+        guard panels.map(\.frame) != frames else { return }
         panels.forEach { $0.close() }
-        panels = screens.map(OverlayPanel.init)
+        panels = frames.map(OverlayPanel.init)
+    }
+
+    /// One view per screen, in screen order.
+    var panelViews: [HintsView] {
+        panels.map(\.hintsView)
+    }
+}
+
+extension HintOverlay: SearchOverlayPresenting {
+    /// Shows the search box over the window's top center and every match in
+    /// the hint theme. The first call makes the box's panel key, so keystrokes
+    /// reach JUMP without activating it; returns whether a panel is key.
+    @discardableResult
+    public func showSearch(_ presentation: SearchPresentation) -> Bool {
+        let screens = NSScreen.screens
+        guard let primary = screens.first else { return false }
+        syncPanels(with: screens)
+        let boxPanel = applySearch(presentation, primaryScreenHeight: primary.frame.height)
+
+        for panel in panels {
+            panel.orderFrontRegardless()
+            // Draw now, as `show` does, so the box is on screen when this returns.
+            panel.hintsView.layoutSubtreeIfNeeded()
+            panel.displayIfNeeded()
+        }
+
+        guard !isVisible else { return hasKeyPanel }
+        let keyPanel = boxPanel.map { panels[$0] } ?? panels.first
+        keyPanel?.makeKey()
+        isVisible = true
+        return keyPanel?.isKeyWindow ?? false
+    }
+
+    /// Gives each panel its part of the search, replacing hints and outline.
+    /// Returns the index of the panel holding the search box.
+    @discardableResult
+    func applySearch(_ presentation: SearchPresentation, primaryScreenHeight: CGFloat) -> Int? {
+        let boxPanel = SearchLayout.boxPanelIndex(for: presentation.windowFrame, panelFrames: panels.map(\.frame),
+                                                  primaryScreenHeight: primaryScreenHeight)
+        let appearance = hintAppearance()
+        for (index, panel) in panels.enumerated() {
+            let view = panel.hintsView
+            view.hintAppearance = appearance
+            view.items = []
+            view.typed = ""
+            view.outline = nil
+            view.search = SearchLayout.search(for: presentation, panelFrame: panel.frame,
+                                              primaryScreenHeight: primaryScreenHeight, showsBox: index == boxPanel)
+        }
+        return boxPanel
     }
 }
 
@@ -153,10 +210,10 @@ public final class HintOverlay {
 private final class OverlayPanel: NSPanel {
     let hintsView: HintsView
 
-    init(screen: NSScreen) {
-        hintsView = HintsView(frame: CGRect(origin: .zero, size: screen.frame.size))
+    init(frame: CGRect) {
+        hintsView = HintsView(frame: CGRect(origin: .zero, size: frame.size))
         super.init(
-            contentRect: screen.frame,
+            contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -171,7 +228,7 @@ private final class OverlayPanel: NSPanel {
         hidesOnDeactivate = false
         becomesKeyOnlyIfNeeded = false
         contentView = hintsView
-        setFrame(screen.frame, display: false)
+        setFrame(frame, display: false)
     }
 
     override var canBecomeKey: Bool { true }

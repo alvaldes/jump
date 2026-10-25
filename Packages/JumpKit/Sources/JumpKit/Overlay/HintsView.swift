@@ -27,12 +27,40 @@ final class HintsView: NSView {
         didSet { if outline != oldValue { needsDisplay = true } }
     }
 
+    /// Text search mode: its box and highlighted matches.
+    struct Search: Equatable {
+        struct Highlight: Equatable {
+            /// Matched text in this view's coordinates.
+            let frame: CGRect
+            let isSelected: Bool
+        }
+
+        var query: String
+        var status: SearchPresentation.Status
+        /// Matches on every screen, for "n of m".
+        var matchCount: Int
+        /// Matches on this screen.
+        var highlights: [Highlight]
+        /// Target window in this view's coordinates, when the box is on this screen.
+        var windowFrame: CGRect?
+    }
+
+    var search: Search? {
+        didSet { if search != oldValue { needsDisplay = true } }
+    }
+
     var hintAppearance = HintAppearance.standard {
         didSet {
             guard hintAppearance != oldValue else { return }
             metrics = Metrics(appearance: hintAppearance)
             invalidate()
         }
+    }
+
+    /// Colors of the current theme in the overlay's appearance.
+    var palette: HintPalette {
+        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return hintAppearance.theme.palette(isDark: isDark, accent: .controlAccentColor)
     }
 
     private var metrics = Metrics(appearance: .standard)
@@ -117,6 +145,17 @@ final class HintsView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        if search != nil {
+            let palette = palette
+            for highlight in searchHighlightShapes(palette: palette) where highlight.frame.intersects(dirtyRect) {
+                drawHighlight(highlight)
+            }
+            // Drawn even with Liquid Glass on: the box holds text being typed
+            // and must stay readable over anything, which a drawn pill guarantees.
+            if let box = searchBoxShape(palette: palette), box.frame.intersects(dirtyRect) {
+                drawSearchBox(box)
+            }
+        }
         if let outline {
             drawOutline(outline)
         }
@@ -169,8 +208,7 @@ final class HintsView: NSView {
             visible.reverse()
         }
 
-        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let palette = hintAppearance.theme.palette(isDark: isDark, accent: .controlAccentColor)
+        let palette = palette
         let texts = visible.map { metrics.label($0.label, typed: typed, palette: palette) }
         let rects = HintLayout.place(zip(visible, texts).map { item, text in
             HintLayout.Request(size: metrics.pillSize(for: text), anchor: item.anchor, elementFrame: item.elementFrame)
@@ -206,6 +244,149 @@ final class HintsView: NSView {
         path.stroke()
 
         pill.text.draw(at: CGPoint(x: frame.minX + metrics.horizontalPadding, y: frame.minY + metrics.verticalPadding))
+    }
+}
+
+// MARK: - Text search
+
+extension HintsView {
+    /// One highlighted match as drawn.
+    struct HighlightShape {
+        let frame: CGRect
+        let isSelected: Bool
+        let fill: NSColor
+        let stroke: NSColor
+        let lineWidth: CGFloat
+        /// A wider ring under the stroke, so the selected match stands out on
+        /// any background.
+        let halo: NSColor?
+    }
+
+    /// The search box as drawn.
+    struct SearchBoxShape {
+        let frame: CGRect
+        let fill: NSColor
+        let border: NSColor
+        let query: NSAttributedString
+        let queryRect: CGRect
+        let status: NSAttributedString?
+        let statusOrigin: CGPoint
+    }
+
+    /// Highlights in drawing order: the selected match last, on top.
+    func searchHighlightShapes() -> [HighlightShape] {
+        searchHighlightShapes(palette: palette)
+    }
+
+    func searchBoxShape() -> SearchBoxShape? {
+        searchBoxShape(palette: palette)
+    }
+
+    fileprivate func searchHighlightShapes(palette: HintPalette) -> [HighlightShape] {
+        guard let search else { return [] }
+        let outset = SearchLayout.highlightOutset
+        let shapes = search.highlights.map { highlight in
+            HighlightShape(
+                frame: highlight.frame.insetBy(dx: -outset, dy: -outset),
+                isSelected: highlight.isSelected,
+                fill: palette.fill.withAlphaComponent(highlight.isSelected ? 0.35 : 0.22),
+                // The theme's text color contrasts with its fill, which rings it.
+                stroke: highlight.isSelected ? palette.text : palette.border,
+                lineWidth: highlight.isSelected ? 2 : 1,
+                halo: highlight.isSelected ? palette.fill : nil
+            )
+        }
+        return shapes.filter { !$0.isSelected } + shapes.filter(\.isSelected)
+    }
+
+    fileprivate func searchBoxShape(palette: HintPalette) -> SearchBoxShape? {
+        guard let search, let window = search.windowFrame else { return nil }
+        let scale = hintAppearance.size / HintAppearance.standard.size
+        let horizontalPadding = 12 * scale
+        let verticalPadding = 7 * scale
+        let gap = 16 * scale
+        let topMargin = 10 * scale
+        let minimumWidth = 240 * scale
+        let edgeInset: CGFloat = 4
+
+        let fontSize = hintAppearance.size + SearchLayout.boxFontIncrease
+        let truncating = NSMutableParagraphStyle()
+        // While typing, the end of a long query is what matters.
+        truncating.lineBreakMode = .byTruncatingHead
+        let isEmpty = search.query.isEmpty
+        let query = NSAttributedString(string: isEmpty ? "Search visible text" : search.query, attributes: [
+            .font: NSFont.systemFont(ofSize: fontSize),
+            .foregroundColor: isEmpty ? palette.typed : palette.text,
+            .paragraphStyle: truncating,
+        ])
+        let status = SearchLayout.statusText(search.status, matchCount: search.matchCount).map {
+            NSAttributedString(string: $0, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: fontSize - 1, weight: .medium),
+                .foregroundColor: palette.text,
+            ])
+        }
+
+        let querySize = query.size()
+        let statusSize = status?.size() ?? .zero
+        let statusSpace = status == nil ? 0 : gap + ceil(statusSize.width)
+        let textHeight = ceil(max(querySize.height, statusSize.height))
+        let height = textHeight + verticalPadding * 2
+        let width = min(
+            max(minimumWidth, ceil(querySize.width) + statusSpace + horizontalPadding * 2),
+            bounds.width - edgeInset * 2
+        )
+
+        func clamp(_ value: CGFloat, _ lower: CGFloat, _ upper: CGFloat) -> CGFloat {
+            max(lower, min(value, upper))
+        }
+        let x = clamp(window.midX - width / 2, edgeInset, bounds.width - edgeInset - width)
+        let y = clamp(window.maxY - topMargin - height, edgeInset, bounds.height - edgeInset - height)
+        // Whole points (plus half for the 1 pt stroke) keep edges crisp.
+        let frame = CGRect(x: x.rounded() + 0.5, y: y.rounded() + 0.5, width: width, height: height)
+
+        let textY = frame.minY + verticalPadding
+        return SearchBoxShape(
+            frame: frame,
+            fill: palette.fill,
+            border: palette.border,
+            query: query,
+            queryRect: CGRect(x: frame.minX + horizontalPadding, y: textY,
+                              width: max(0, frame.width - horizontalPadding * 2 - statusSpace), height: textHeight),
+            status: status,
+            statusOrigin: CGPoint(x: frame.maxX - horizontalPadding - ceil(statusSize.width),
+                                  y: textY + (textHeight - statusSize.height) / 2)
+        )
+    }
+
+    fileprivate func drawHighlight(_ shape: HighlightShape) {
+        let path = NSBezierPath(roundedRect: shape.frame, xRadius: 4, yRadius: 4)
+        shape.fill.setFill()
+        path.fill()
+        if let halo = shape.halo {
+            halo.setStroke()
+            path.lineWidth = shape.lineWidth + 3
+            path.stroke()
+        }
+        shape.stroke.setStroke()
+        path.lineWidth = shape.lineWidth
+        path.stroke()
+    }
+
+    fileprivate func drawSearchBox(_ box: SearchBoxShape) {
+        let radius = min(10, box.frame.height / 2)
+        let path = NSBezierPath(roundedRect: box.frame, xRadius: radius, yRadius: radius)
+        NSGraphicsContext.saveGraphicsState()
+        Style.shadow.set()
+        box.fill.setFill()
+        path.fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        box.border.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+
+        box.query.draw(with: box.queryRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
+        box.status?.draw(at: box.statusOrigin)
     }
 }
 

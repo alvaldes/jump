@@ -1,0 +1,23 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.17000,0.19000,0.21000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        { "image-name" : "letter-j.svg", "name" : "letter-j" },
+        { "image-name" : "homing-bump.svg", "name" : "homing-bump" }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "translucency" : { "enabled" : true, "value" : 0.3 }
+    },
+    {
+      "layers" : [
+        { "image-name" : "keycap-top.svg", "name" : "keycap-top", "opacity" : 0.18 }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.3 },
+      "translucency" : { "enabled" : true, "value" : 0.5 }
+    }
+  ],
+  "supported-platforms" : { "squares" : [ "macOS" ] }
+}

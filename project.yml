@@ -44,6 +44,9 @@ targets:
         PRODUCT_NAME: JUMP
         PRODUCT_BUNDLE_IDENTIFIER: com.alvaldes.jump
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The glyph icon is a user option for the Dock tile (Settings).
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconGlyph
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_STRICT_CONCURRENCY: complete

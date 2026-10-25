@@ -9,6 +9,9 @@ import Observation
 public final class JumpSettings {
     public private(set) var hintCharacters: String
     public private(set) var hintAppearance: HintAppearance
+    public private(set) var menuBarIcon: MenuBarIcon
+    public private(set) var showInDock: Bool
+    public private(set) var appIcon: AppIconChoice
 
     private let defaults: UserDefaults
 
@@ -17,6 +20,9 @@ public final class JumpSettings {
         static let hintTheme = "hintTheme"
         static let hintSize = "hintSize"
         static let hintGlass = "hintGlass"
+        static let menuBarIcon = "menuBarIcon"
+        static let showInDock = "showInDock"
+        static let appIcon = "appIcon"
     }
 
     /// Labels need at least two characters to tell elements apart.
@@ -27,6 +33,9 @@ public final class JumpSettings {
         let stored = defaults.string(forKey: Key.hintCharacters).flatMap(Self.normalized)
         self.hintCharacters = stored ?? HintLabels.defaultCharacters
         self.hintAppearance = Self.storedAppearance(in: defaults)
+        self.menuBarIcon = defaults.string(forKey: Key.menuBarIcon).flatMap(MenuBarIcon.init(rawValue:)) ?? .keycap
+        self.showInDock = defaults.object(forKey: Key.showInDock) as? Bool ?? false
+        self.appIcon = defaults.string(forKey: Key.appIcon).flatMap(AppIconChoice.init(rawValue:)) ?? .official
     }
 
     /// Stores the characters used for labels, lowercased, without duplicates or
@@ -56,6 +65,21 @@ public final class JumpSettings {
     public func setHintGlass(_ glass: HintGlass) {
         hintAppearance.glass = glass
         defaults.set(glass.rawValue, forKey: Key.hintGlass)
+    }
+
+    public func setMenuBarIcon(_ icon: MenuBarIcon) {
+        menuBarIcon = icon
+        defaults.set(icon.rawValue, forKey: Key.menuBarIcon)
+    }
+
+    public func setShowInDock(_ show: Bool) {
+        showInDock = show
+        defaults.set(show, forKey: Key.showInDock)
+    }
+
+    public func setAppIcon(_ icon: AppIconChoice) {
+        appIcon = icon
+        defaults.set(icon.rawValue, forKey: Key.appIcon)
     }
 
     /// Each stored value that is missing or invalid falls back to its default.

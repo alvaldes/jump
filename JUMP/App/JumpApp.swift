@@ -51,6 +51,9 @@ struct JumpApp: App {
         self.services = services
         self.switcher = switcher
 
+        // NSApp exists once the app finishes starting.
+        DispatchQueue.main.async { DockPresence.apply(settings) }
+
         // Track grants and revocations for the whole app lifetime.
         Task { await permission.monitor() }
         KeyboardShortcuts.onKeyDown(for: .activateHints) { switcher.activateHints() }
@@ -58,8 +61,11 @@ struct JumpApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("JUMP", systemImage: "j.square") {
+        MenuBarExtra {
             MenuContent(permission: permission, hintMode: hintMode)
+        } label: {
+            Image(settings.menuBarIcon.imageName)
+                .accessibilityLabel("JUMP")
         }
 
         Window("Welcome to JUMP", id: OnboardingView.windowID) {

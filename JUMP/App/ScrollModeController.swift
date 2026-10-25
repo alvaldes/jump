@@ -114,7 +114,7 @@ final class ScrollModeController {
         activeIndex = index
         let area = areas[index]
         let receivesKeys = overlay.showOutline(area.frame)
-        if let control = AXScrollControl.make(for: area.node, frame: area.frame) {
+        if let control = AXScrollControl.make(for: area.node) {
             // Scroll bars are driven directly, so the pointer stays free.
             output = .accessibility(control)
         } else {

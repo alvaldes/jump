@@ -22,12 +22,20 @@ public nonisolated struct AXScrollControl: @unchecked Sendable {
     private let horizontalBar: AXUIElement?
     private let visibleSize: CGSize
 
-    /// `nil` when the area exposes no scroll bar whose value can be written.
-    public static func make(for area: AXNode, frame: CGRect) -> AXScrollControl? {
+    /// `nil` when the area exposes no writable scroll bar or no document size;
+    /// the caller then falls back to wheel events.
+    public static func make(for area: AXNode) -> AXScrollControl? {
         let vertical = writableBar(of: area.element, named: "AXVerticalScrollBar")
         let horizontal = writableBar(of: area.element, named: "AXHorizontalScrollBar")
-        guard vertical != nil || horizontal != nil else { return nil }
-        return AXScrollControl(area: area.element, verticalBar: vertical, horizontalBar: horizontal, visibleSize: frame.size)
+        guard vertical != nil || horizontal != nil,
+              // The real viewport, not the frame clipped to the screen, so a
+              // pixel and half a page mean what they say.
+              let viewport = size(of: area.element), viewport.width > 0, viewport.height > 0
+        else { return nil }
+        let control = AXScrollControl(area: area.element, verticalBar: vertical, horizontalBar: horizontal, visibleSize: viewport)
+        // Without a readable document size pixel steps cannot be converted.
+        guard control.documentSize() != .zero else { return nil }
+        return control
     }
 
     /// Moves by `pixels` toward `direction`. Returns `false` if that axis cannot scroll.
@@ -56,11 +64,15 @@ public nonisolated struct AXScrollControl: @unchecked Sendable {
 
     private func documentSize() -> CGSize {
         guard let contents: [AXUIElement] = AXNode.copyAttribute("AXContents", of: area),
-              let document = contents.first,
-              let value: AXValue = AXNode.copyAttribute("AXSize", of: document)
+              let document = contents.first
         else { return .zero }
+        return Self.size(of: document) ?? .zero
+    }
+
+    private static func size(of element: AXUIElement) -> CGSize? {
+        guard let value: AXValue = AXNode.copyAttribute("AXSize", of: element) else { return nil }
         var size = CGSize.zero
-        return AXValueGetValue(value, .cgSize, &size) ? size : .zero
+        return AXValueGetValue(value, .cgSize, &size) ? size : nil
     }
 
     private static func writableBar(of area: AXUIElement, named attribute: String) -> AXUIElement? {

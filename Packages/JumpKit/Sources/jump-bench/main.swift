@@ -116,7 +116,7 @@ let window = AXNode(windowValue as! AXUIElement)
 if arguments.contains("--ax-scroll") {
     // Drives the largest scroll area through its scroll bar, without input events.
     let areas = ScrollAreaFinder().find(in: window, deadline: .now.advanced(by: .seconds(5)))
-    guard let area = areas.first, let control = AXScrollControl.make(for: area.node, frame: area.frame) else {
+    guard let area = areas.first, let control = AXScrollControl.make(for: area.node) else {
         print("no writable scroll bar")
         exit(1)
     }

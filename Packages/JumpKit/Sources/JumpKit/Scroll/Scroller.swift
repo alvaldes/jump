@@ -45,7 +45,8 @@ public final class Scroller {
         stop()
         switch output {
         case .accessibility(let control):
-            writer.submit { control.scrollToEdge(top: top) }
+            // A one-shot command must not be dropped like a repeating tick.
+            writer.submit(dropIfBusy: false) { control.scrollToEdge(top: top) }
         case .wheel:
             Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance,
                                       naturalScrolling: Self.isNaturalScrolling()))
@@ -118,7 +119,13 @@ private nonisolated final class AccessibilityWriter: Sendable {
     private let queue = DispatchQueue(label: "com.alvaldes.jump.scroll", qos: .userInteractive)
     private let busy = Atomic(false)
 
-    func submit(_ work: @escaping @Sendable () -> Void) {
+    /// - Parameter dropIfBusy: `true` for repeating ticks; `false` queues the
+    ///   work behind the running write (one-shot commands like `G`).
+    func submit(dropIfBusy: Bool = true, _ work: @escaping @Sendable () -> Void) {
+        guard dropIfBusy else {
+            queue.async(execute: work)
+            return
+        }
         guard !busy.exchange(true, ordering: .acquiring) else { return }
         queue.async {
             work()

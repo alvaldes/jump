@@ -29,6 +29,8 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private let locate: Locator
     @ObservationIgnored private let perform: Performer
     @ObservationIgnored private let locateLimit: Int
+    /// The OCR fallback; `nil` searches Accessibility text only.
+    @ObservationIgnored private let screenText: ScreenTextSource?
     @ObservationIgnored private let logger = Logger(subsystem: "com.alvaldes.jump", category: "search")
 
     /// Opening plus text collection, the word-bounds lookup of the current
@@ -36,6 +38,8 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private(set) var scanTask: Task<Void, Never>?
     @ObservationIgnored private(set) var locateTask: Task<Void, Never>?
     @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
+    /// Screen text recognition of this search (exposed to tests).
+    @ObservationIgnored private(set) var recognizeTask: Task<Void, Never>?
 
     @ObservationIgnored private var keys = SearchInput()
     @ObservationIgnored private var target = CGRect.null
@@ -51,9 +55,19 @@ public final class TextSearchMode<Node: Sendable> {
     /// unless the query changes first.
     @ObservationIgnored private var pendingJump: HintAction?
 
+    // OCR fallback: its matches are shown only while Accessibility has none.
+    /// Whether this search recognizes screen text (read when it opens).
+    @ObservationIgnored private var recognizesScreenText = false
+    /// `nil` until recognition finishes.
+    @ObservationIgnored private var screenRuns: [TextRun<ScreenText>]?
+    @ObservationIgnored private var screenMatches: [TextMatch<ScreenText>] = []
+    /// Bumped on every dismissal, so a closed search's recognition is dropped.
+    @ObservationIgnored private var session = 0
+
     /// - Parameters:
     ///   - prepareApp: Runs before collecting (enables Chromium/Electron trees).
     ///   - locateLimit: How many matches, in reading order, get word bounds.
+    ///   - screenText: Recognized text, searched when Accessibility has no match.
     public init(
         overlay: SearchOverlayPresenting,
         input: ModeInputSource,
@@ -64,7 +78,8 @@ public final class TextSearchMode<Node: Sendable> {
         collect: @escaping Collector,
         locate: @escaping Locator,
         perform: @escaping Performer,
-        locateLimit: Int = 100
+        locateLimit: Int = 100,
+        screenText: ScreenTextSource? = nil
     ) {
         self.overlay = overlay
         self.input = input
@@ -76,6 +91,7 @@ public final class TextSearchMode<Node: Sendable> {
         self.locate = locate
         self.perform = perform
         self.locateLimit = locateLimit
+        self.screenText = screenText
     }
 
     /// Bound to the search hotkey.
@@ -94,6 +110,12 @@ public final class TextSearchMode<Node: Sendable> {
         locateTask = nil
         generation += 1
         pendingJump = nil
+        recognizeTask?.cancel()
+        recognizeTask = nil
+        session += 1
+        recognizesScreenText = false
+        screenRuns = nil
+        screenMatches = []
         guard isActive else { return }
         isActive = false
         runs = nil
@@ -131,6 +153,8 @@ public final class TextSearchMode<Node: Sendable> {
             matches = []
             located = []
             selected = 0
+            screenRuns = nil
+            screenMatches = []
             isActive = true
             guard overlay.showSearch(presentation()) else {
                 logger.error("Search box could not receive keys; leaving it")
@@ -138,6 +162,7 @@ public final class TextSearchMode<Node: Sendable> {
             }
             let shownMs = Self.milliseconds(since: start)
             startListening(on: app)
+            startRecognizing(app, frame: frame, since: start)
 
             await prepareApp(app)
             let collectStart = ContinuousClock.now
@@ -160,11 +185,47 @@ public final class TextSearchMode<Node: Sendable> {
                 \(collected.count) texts collected in \(collectMs) ms, ready after \(totalMs) ms
                 """)
             refreshMatches()
-            if let action = pendingJump {
-                pendingJump = nil
-                jump(action)
-            }
+            resolvePendingJump()
         }
+    }
+
+    /// Recognizes the window's text in parallel with the Accessibility collection.
+    private func startRecognizing(_ app: FrontmostApp, frame: CGRect, since start: ContinuousClock.Instant) {
+        guard let screenText, screenText.isEnabled() else { return }
+        recognizesScreenText = true
+        let thisSession = session
+        recognizeTask = Task {
+            let recognized: [TextRun<ScreenText>]
+            do {
+                recognized = try await screenText.recognize(app, frame)
+            } catch {
+                recognized = []
+                logger.notice("OCR in \(app.name, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            }
+            // Dismissed (and maybe reopened) while recognizing.
+            guard !Task.isCancelled, session == thisSession else { return }
+            recognizeTask = nil
+            screenRuns = recognized
+            logger.info("OCR in \(app.name, privacy: .public): \(recognized.count) lines ready after \(Self.milliseconds(since: start)) ms")
+            // Only queries without Accessibility matches change.
+            if runs != nil, matches.isEmpty {
+                refreshMatches()
+            }
+            resolvePendingJump()
+        }
+    }
+
+    /// The current query has no final answer yet: Accessibility is still
+    /// collecting, or found nothing while OCR may still find it.
+    private var awaitsResults: Bool {
+        runs == nil || (matches.isEmpty && recognizesScreenText && screenRuns == nil)
+    }
+
+    /// Carries out a Return pressed before the results were in.
+    private func resolvePendingJump() {
+        guard let action = pendingJump, !awaitsResults else { return }
+        pendingJump = nil
+        jump(action)
     }
 
     private func startListening(on app: FrontmostApp) {
@@ -189,7 +250,7 @@ public final class TextSearchMode<Node: Sendable> {
         case .previous:
             moveSelection(by: -1)
         case .jump(let action):
-            if runs == nil {
+            if awaitsResults {
                 pendingJump = action
             } else {
                 jump(action)
@@ -201,9 +262,13 @@ public final class TextSearchMode<Node: Sendable> {
         }
     }
 
+    /// How many matches the overlay shows, from whichever source has them.
+    private var matchCount: Int { matches.isEmpty ? screenMatches.count : matches.count }
+
     private func moveSelection(by offset: Int) {
-        guard !matches.isEmpty else { return }
-        selected = (selected + offset + matches.count) % matches.count
+        let count = matchCount
+        guard count > 0 else { return }
+        selected = (selected + offset + count) % count
         overlay.showSearch(presentation())
     }
 
@@ -214,6 +279,7 @@ public final class TextSearchMode<Node: Sendable> {
         locateTask?.cancel()
         generation += 1
         matches = TextMatcher.matches(of: keys.query, in: runs)
+        screenMatches = matches.isEmpty ? ScreenTextLayout.matches(of: keys.query, in: screenRuns ?? []) : []
         located = Array(repeating: false, count: matches.count)
         selected = 0
         overlay.showSearch(presentation())
@@ -246,6 +312,9 @@ public final class TextSearchMode<Node: Sendable> {
     }
 
     private func jump(_ action: HintAction) {
+        if matches.isEmpty, let screenText, screenMatches.indices.contains(selected) {
+            return jumpOnScreen(action, to: screenMatches[selected], via: screenText)
+        }
         guard matches.indices.contains(selected) else { return }
         let match = matches[selected]
         let isLocated = located[selected]
@@ -264,17 +333,29 @@ public final class TextSearchMode<Node: Sendable> {
         }
     }
 
+    /// Recognized matches already carry word boxes; there is no caret to place.
+    private func jumpOnScreen(_ action: HintAction, to match: TextMatch<ScreenText>, via screenText: ScreenTextSource) {
+        dismiss()
+        logger.info("Jump: \(String(describing: action), privacy: .public) on \(match.run.role, privacy: .public)")
+        let perform = screenText.perform
+        actionTask = Task { await perform(action, match) }
+    }
+
     private func presentation() -> SearchPresentation {
         let status: SearchPresentation.Status = if runs == nil {
             .collecting
         } else if keys.query.allSatisfy(\.isWhitespace) {
             .idle
-        } else if matches.isEmpty {
-            .noMatches
-        } else {
+        } else if !matches.isEmpty || !screenMatches.isEmpty {
             .matches(selected: selected)
+        } else if recognizesScreenText, screenRuns == nil {
+            // OCR may still find it.
+            .collecting
+        } else {
+            .noMatches
         }
-        return SearchPresentation(query: keys.query, status: status, matches: matches.map(\.frame), windowFrame: target)
+        let frames = matches.isEmpty ? screenMatches.map(\.frame) : matches.map(\.frame)
+        return SearchPresentation(query: keys.query, status: status, matches: frames, windowFrame: target)
     }
 
     private static func milliseconds(since start: ContinuousClock.Instant) -> Int {

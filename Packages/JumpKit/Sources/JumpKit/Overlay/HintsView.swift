@@ -138,16 +138,18 @@ final class HintsView: NSView {
         }
         for (index, glass) in glassPills.enumerated() {
             guard index < pills.count else {
-                glass.isHidden = true
+                if !glass.isHidden { glass.isHidden = true }
                 continue
             }
             let pill = pills[index]
-            glass.frame = pill.frame
-            glass.cornerRadius = pill.frame.height / 2
-            glass.style = style
-            glass.tintColor = pill.palette.glassTint
+            // Setting a glass property re-renders the glass even when the value
+            // is unchanged, so only changes are applied.
+            if glass.frame != pill.frame { glass.frame = pill.frame }
+            if glass.cornerRadius != pill.frame.height / 2 { glass.cornerRadius = pill.frame.height / 2 }
+            if glass.style != style { glass.style = style }
+            if glass.tintColor != pill.palette.glassTint { glass.tintColor = pill.palette.glassTint }
             (glass.contentView as? GlassLabelView)?.show(pill.text, at: CGPoint(x: metrics.horizontalPadding, y: metrics.verticalPadding))
-            glass.isHidden = false
+            if glass.isHidden { glass.isHidden = false }
         }
     }
 

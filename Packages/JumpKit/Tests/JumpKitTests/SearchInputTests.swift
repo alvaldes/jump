@@ -1,0 +1,63 @@
+import Testing
+@testable import JumpKit
+
+@Suite("SearchInput")
+struct SearchInputTests {
+    private var input = SearchInput()
+
+    private func key(_ keyCode: UInt16, _ characters: String = "", shift: Bool = false, command: Bool = false,
+                     option: Bool = false, control: Bool = false) -> KeyPress {
+        KeyPress(keyCode: keyCode, characters: characters, shift: shift, command: command, option: option, control: control)
+    }
+
+    @Test mutating func charactersAppendToTheQuery() {
+        #expect(input.handle(key(1, "s")) == .edited("s"))
+        #expect(input.handle(key(0, "A", shift: true)) == .edited("sA"))
+        #expect(input.handle(key(49, " ")) == .edited("sA "))
+        #expect(input.query == "sA ")
+    }
+
+    @Test mutating func optionStillTypes() {
+        #expect(input.handle(key(1, "s", option: true)) == .edited("s"))
+    }
+
+    @Test mutating func shortcutsWithCommandOrControlAreIgnored() {
+        #expect(input.handle(key(9, "v", command: true)) == .ignored)
+        #expect(input.handle(key(1, "s", control: true)) == .ignored)
+        #expect(input.query == "")
+    }
+
+    @Test mutating func keysWithoutPrintableTextAreIgnored() {
+        #expect(input.handle(key(123, "\u{F702}")) == .ignored, "left arrow")
+        #expect(input.handle(key(0)) == .ignored)
+    }
+
+    @Test mutating func deleteRemovesTheLastCharacter() {
+        _ = input.handle(key(1, "é"))
+        _ = input.handle(key(1, "👋"))
+        #expect(input.handle(key(51)) == .edited("é"))
+        #expect(input.handle(key(51)) == .edited(""))
+        #expect(input.handle(key(51)) == .ignored, "nothing left to delete")
+    }
+
+    @Test mutating func tabAndShiftTabMoveTheSelection() {
+        #expect(input.handle(key(48, "\t")) == .next)
+        #expect(input.handle(key(48, "\t", shift: true)) == .previous)
+    }
+
+    @Test(arguments: [
+        (false, false, false, HintAction.press), (true, false, false, .rightClick),
+        (false, true, false, .doubleClick), (false, false, true, .moveCursor),
+    ])
+    func returnJumpsWithTheHintModifiers(shift: Bool, command: Bool, option: Bool, action: HintAction) {
+        var input = SearchInput()
+        for keyCode: UInt16 in [36, 76] {
+            #expect(input.handle(key(keyCode, "\r", shift: shift, command: command, option: option)) == .jump(action))
+        }
+    }
+
+    @Test mutating func escapeCancels() {
+        _ = input.handle(key(1, "s"))
+        #expect(input.handle(key(53)) == .cancel)
+    }
+}

@@ -33,6 +33,8 @@ public nonisolated struct KeyPress: Sendable, Equatable {
         static let delete: UInt16 = 51
         static let space: UInt16 = 49
         static let tab: UInt16 = 48
+        static let returnKey: UInt16 = 36
+        static let keypadEnter: UInt16 = 76
     }
 }
 

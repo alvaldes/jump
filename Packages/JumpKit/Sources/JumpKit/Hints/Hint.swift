@@ -53,15 +53,24 @@ public nonisolated enum HintAssigner {
 
     /// Groups elements into visual rows (top to bottom), each sorted left to right.
     static func readingOrder<Node>(_ elements: [ScannedElement<Node>]) -> [ScannedElement<Node>] {
-        var rows: [[ScannedElement<Node>]] = []
-        for element in elements.sorted(by: { $0.frame.midY < $1.frame.midY }) {
-            if let rowStart = rows.last?.first, isSameRow(rowStart.frame, element.frame) {
-                rows[rows.count - 1].append(element)
+        ReadingOrder.sorted(elements, frame: { $0.frame })
+    }
+}
+
+/// Top-to-bottom, left-to-right order of things on screen, shared by hint
+/// labels and text search matches.
+nonisolated enum ReadingOrder {
+    /// Groups items into visual rows (top to bottom), each sorted left to right.
+    static func sorted<Item>(_ items: [Item], frame: (Item) -> CGRect) -> [Item] {
+        var rows: [[Item]] = []
+        for item in items.sorted(by: { frame($0).midY < frame($1).midY }) {
+            if let rowStart = rows.last?.first, isSameRow(frame(rowStart), frame(item)) {
+                rows[rows.count - 1].append(item)
             } else {
-                rows.append([element])
+                rows.append([item])
             }
         }
-        return rows.flatMap { $0.sorted { $0.frame.minX < $1.frame.minX } }
+        return rows.flatMap { $0.sorted { frame($0).minX < frame($1).minX } }
     }
 
     private static func isSameRow(_ a: CGRect, _ b: CGRect) -> Bool {

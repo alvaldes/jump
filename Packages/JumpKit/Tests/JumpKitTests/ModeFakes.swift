@@ -110,3 +110,53 @@ final class FakeDriver: ScrollDriving {
         }
     }
 }
+
+/// Records what text search mode shows.
+final class FakeSearchOverlay: SearchOverlayPresenting {
+    var isVisible = false
+    var canTakeKeyboard = true
+    private(set) var presentations: [SearchPresentation] = []
+    private(set) var hideCount = 0
+
+    var last: SearchPresentation? { presentations.last }
+
+    func showSearch(_ presentation: SearchPresentation) -> Bool {
+        presentations.append(presentation)
+        isVisible = true
+        return canTakeKeyboard
+    }
+
+    func hide() {
+        hideCount += 1
+        isVisible = false
+    }
+}
+
+/// Holds an async boundary (collection, word bounds) until the test opens it.
+final class Gate {
+    private var isReached = false
+    private var isOpen = false
+    private var reachWaiters: [CheckedContinuation<Void, Never>] = []
+    private var passers: [CheckedContinuation<Void, Never>] = []
+
+    /// Called by the boundary: waits until `open()`.
+    func pass() async {
+        isReached = true
+        reachWaiters.forEach { $0.resume() }
+        reachWaiters = []
+        guard !isOpen else { return }
+        await withCheckedContinuation { passers.append($0) }
+    }
+
+    /// Waits until the boundary was called.
+    func reached() async {
+        guard !isReached else { return }
+        await withCheckedContinuation { reachWaiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        passers.forEach { $0.resume() }
+        passers = []
+    }
+}

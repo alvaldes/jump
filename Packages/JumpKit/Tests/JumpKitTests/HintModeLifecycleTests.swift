@@ -243,4 +243,64 @@ struct ModeSwitcherTests {
         #expect(!hintInput.isListening)
         #expect(scroll.isActive)
     }
+
+    @Test func textSearchNeverRunsWithHintsOrScroll() async {
+        let overlay = FakeOverlay()
+        let hintInput = FakeInput()
+        let scrollInput = FakeInput()
+        let searchInput = FakeInput()
+        let searchOverlay = FakeSearchOverlay()
+        let hints = HintMode<ModeNode>(
+            overlay: overlay, input: hintInput, isTrusted: { true }, hintCharacters: { "sa" },
+            frontmostApp: { fakeApp },
+            scan: { _ in
+                ScanResult(elements: [ScannedElement(node: ModeNode(id: "a"), role: "AXButton",
+                                                     frame: CGRect(x: 0, y: 0, width: 10, height: 10))],
+                           visitedCount: 1, isTruncated: false)
+            },
+            perform: { _, _ in }
+        )
+        let scroll = ScrollMode(
+            overlay: overlay, pointer: FakePointer(), input: scrollInput, driver: FakeDriver(),
+            isTrusted: { true }, frontmostApp: { fakeApp }, screens: { [] },
+            findTargets: { _, _ in [ScrollTarget(frame: CGRect(x: 0, y: 0, width: 100, height: 100), control: FakeControl(id: 1))] }
+        )
+        let search = TextSearchMode<ModeNode>(
+            overlay: searchOverlay, input: searchInput, isTrusted: { true }, frontmostApp: { fakeApp },
+            windowFrame: { _ in CGRect(x: 0, y: 0, width: 800, height: 600) }, collect: { _ in [] },
+            locate: { _ in nil }, perform: { _, _ in }
+        )
+        let switcher = ModeSwitcher(hints: hints, scroll: scroll, search: search)
+
+        switcher.activateHints()
+        await hints.scanTask?.value
+        switcher.activateSearch()
+        await search.scanTask?.value
+        #expect(!hints.isShowingHints)
+        #expect(!hintInput.isListening)
+        #expect(search.isActive)
+
+        switcher.activateScroll()
+        await scroll.scanTask?.value
+        #expect(!search.isActive)
+        #expect(!searchInput.isListening)
+        #expect(scroll.isActive)
+
+        switcher.activateSearch()
+        await search.scanTask?.value
+        #expect(!scroll.isActive)
+        #expect(!scrollInput.isListening)
+        #expect(search.isActive)
+
+        switcher.activateHints()
+        await hints.scanTask?.value
+        #expect(!search.isActive)
+        #expect(hints.isShowingHints)
+
+        // The search hotkey again closes the search, like the other two.
+        switcher.activateSearch()
+        await search.scanTask?.value
+        switcher.activateSearch()
+        #expect(!search.isActive)
+    }
 }

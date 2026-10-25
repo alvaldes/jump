@@ -15,15 +15,18 @@ nonisolated enum WindowFocusChange {
 /// windows taking focus (⌘`, AeroSpace raising a window of the same app),
 /// the app deactivating, or the app being hidden.
 public final class AXWindowFocusObserver: WindowFocusObserving {
-    private static let windowNotifications = [kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification]
-    private static let leaveNotifications = [kAXApplicationDeactivatedNotification, kAXApplicationHiddenNotification]
-    /// Reads run on the main thread; a busy app must not stall it.
-    private static let messagingTimeout: Float = 0.1
+    private nonisolated static let windowNotifications = [kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification]
+    private nonisolated static let leaveNotifications = [kAXApplicationDeactivatedNotification, kAXApplicationHiddenNotification]
+    /// Reads after registration run on the main thread; a busy app must not stall it.
+    private nonisolated static let messagingTimeout: Float = 0.1
 
     private var observer: AXObserver?
     private var app: AXUIElement?
     private var initialWindow: AXUIElement?
     private var onFocusLeft: (() -> Void)?
+    /// Bumped on every start and stop, so a registration that finishes after
+    /// the mode ended (or restarted) is dropped.
+    private var generation = 0
 
     public init() {}
 
@@ -32,24 +35,46 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
         stop()
     }
 
+    /// Registering with the app takes 100-180 ms right after the overlay takes
+    /// the keyboard, so it runs off the main thread: hints appear first, and
+    /// app switches are still caught by the workspace notification meanwhile.
     public func start(pid: pid_t, onFocusLeft: @escaping () -> Void) {
         stop()
+        let generation = generation
+        self.onFocusLeft = onFocusLeft
+        nonisolated(unsafe) let refcon = Unmanaged.passUnretained(self).toOpaque()
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            guard let registration = Self.register(pid: pid, refcon: refcon) else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.generation == generation else { return }
+                CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(registration.observer), .commonModes)
+                observer = registration.observer
+                app = registration.app
+                initialWindow = registration.initialWindow
+            }
+        }
+    }
+
+    private nonisolated struct Registration: @unchecked Sendable {
+        let observer: AXObserver
+        let app: AXUIElement
+        let initialWindow: AXUIElement?
+    }
+
+    private nonisolated static func register(pid: pid_t, refcon: UnsafeMutableRawPointer) -> Registration? {
         var created: AXObserver?
-        guard AXObserverCreate(pid, Self.callback, &created) == .success, let created else { return }
+        guard AXObserverCreate(pid, callback, &created) == .success, let created else { return nil }
         let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, Self.messagingTimeout)
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
-        for name in Self.windowNotifications + Self.leaveNotifications {
+        AXUIElementSetMessagingTimeout(app, messagingTimeout)
+        for name in windowNotifications + leaveNotifications {
             AXObserverAddNotification(created, app, name as CFString, refcon)
         }
-        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .commonModes)
-        observer = created
-        self.app = app
-        self.onFocusLeft = onFocusLeft
-        initialWindow = focusedWindow()
+        let window: AXUIElement? = AXNode.copyAttribute(kAXFocusedWindowAttribute, of: app)
+        return Registration(observer: created, app: app, initialWindow: window)
     }
 
     public func stop() {
+        generation += 1
         if let observer {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
         }
@@ -81,7 +106,7 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
     }
 
     // Delivered on the main run loop, where the observer's source was added.
-    private static let callback: AXObserverCallback = { _, element, notification, refcon in
+    private nonisolated static let callback: AXObserverCallback = { _, element, notification, refcon in
         guard let refcon else { return }
         let name = notification as String
         nonisolated(unsafe) let pointer = refcon

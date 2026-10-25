@@ -108,6 +108,7 @@ public final class HintMode<Node: AccessibilityNode> {
     private func present(_ result: ScanResult<Node>, app: FrontmostApp, start: ContinuousClock.Instant) {
         let scanned = ContinuousClock.now
         let hints = HintAssigner.assign(result.elements, characters: hintCharacters())
+        var shown = scanned
         if let first = hints.first {
             self.hints = hints
             keys = HintInput(labels: hints.map(\.label))
@@ -116,16 +117,18 @@ public final class HintMode<Node: AccessibilityNode> {
                 focusPoint: CGPoint(x: first.element.frame.midX, y: first.element.frame.midY)
             )
             isShowingHints = true
+            shown = ContinuousClock.now
             startListening(on: app)
         }
 
         let totalMs = Int((ContinuousClock.now - start) / .milliseconds(1))
         let scanMs = Int((scanned - start) / .milliseconds(1))
+        let showMs = Int((shown - scanned) / .milliseconds(1))
         let truncated = result.isTruncated ? " (truncated)" : ""
         lastSummary = "\(app.name): \(hints.count) hints in \(totalMs) ms\(truncated)"
         logger.info("""
             Hints for \(app.name, privacy: .public): \(hints.count) hints, \(result.visitedCount) nodes, \
-            scan \(scanMs) ms, on screen after \(totalMs) ms, truncated: \(result.isTruncated)
+            scan \(scanMs) ms, shown in \(showMs) ms, on screen after \(totalMs) ms, truncated: \(result.isTruncated)
             """)
     }
 

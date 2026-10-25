@@ -113,6 +113,34 @@ else {
 }
 let window = AXNode(windowValue as! AXUIElement)
 
+if arguments.contains("--ax-scroll") {
+    // Drives the largest scroll area through its scroll bar, without input events.
+    let areas = ScrollAreaFinder().find(in: window, deadline: .now.advanced(by: .seconds(5)))
+    guard let area = areas.first, let control = AXScrollControl.make(for: area.node, frame: area.frame) else {
+        print("no writable scroll bar")
+        exit(1)
+    }
+    func position() -> String {
+        var bar: CFTypeRef?
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(area.node.element, "AXVerticalScrollBar" as CFString, &bar) == .success,
+              let bar, AXUIElementCopyAttributeValue(bar as! AXUIElement, "AXValue" as CFString, &value) == .success,
+              let number = value as? Double else { return "?" }
+        return String(format: "%.4f", number)
+    }
+    print("start \(position())")
+    let start = ContinuousClock.now
+    for _ in 0..<10 { control.scroll(.down, pixels: 16) }
+    print("after 10 x 16 px down \(position()) in \(ContinuousClock.now - start)")
+    control.scroll(.down, pixels: area.frame.height / 2)
+    print("after half page down \(position())")
+    control.scrollToEdge(top: false)
+    print("bottom \(position())")
+    control.scrollToEdge(top: true)
+    print("top \(position())")
+    exit(0)
+}
+
 if arguments.contains("--scroll-areas") {
     var times: [Duration] = []
     var found: [ScrollArea<TimedNode>] = []

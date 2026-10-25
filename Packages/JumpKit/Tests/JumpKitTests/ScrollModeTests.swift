@@ -147,3 +147,34 @@ struct ScrollerTests {
         #expect(Scroller.halfPage(.left, of: area) == 300)
     }
 }
+
+@Suite("ScrollMath")
+struct ScrollMathTests {
+    @Test func pixelsBecomeAFractionOfTheScrollableLength() {
+        // 1,000 px document in a 200 px viewport: 800 px of travel.
+        #expect(ScrollMath.nextValue(current: 0.5, pixels: 80, documentLength: 1_000, visibleLength: 200) == 0.6)
+        #expect(ScrollMath.nextValue(current: 0.5, pixels: -80, documentLength: 1_000, visibleLength: 200) == 0.4)
+    }
+
+    @Test func valuesStayBetweenStartAndEnd() {
+        #expect(ScrollMath.nextValue(current: 0.95, pixels: 400, documentLength: 1_000, visibleLength: 200) == 1)
+        #expect(ScrollMath.nextValue(current: 0.05, pixels: -400, documentLength: 1_000, visibleLength: 200) == 0)
+    }
+
+    @Test func contentThatFitsCannotScroll() {
+        #expect(ScrollMath.nextValue(current: 0, pixels: 80, documentLength: 150, visibleLength: 200) == nil)
+    }
+}
+
+@Suite("ScrollKey decoding")
+struct ScrollKeyDecodingTests {
+    @Test func capsLockDoesNotChangeTheKey() {
+        // With Caps Lock the typed character is uppercase, but Shift is not held.
+        #expect(ScrollKey.decode("J", shift: false) == .character("j"))
+        #expect(ScrollKey.decode("G", shift: false) == .character("g"))
+    }
+
+    @Test func shiftMakesItUppercase() {
+        #expect(ScrollKey.decode("g", shift: true) == .character("G"))
+    }
+}

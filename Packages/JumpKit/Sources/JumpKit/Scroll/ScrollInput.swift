@@ -1,4 +1,4 @@
-public enum ScrollDirection: Sendable, Equatable {
+public nonisolated enum ScrollDirection: Sendable, Equatable {
     case up, down, left, right
 }
 
@@ -19,6 +19,15 @@ public enum ScrollKey: Sendable, Equatable {
     case character(Character)
     case tab
     case escape
+}
+
+extension ScrollKey {
+    /// Decodes a typed letter so that only Shift makes it uppercase: with
+    /// Caps Lock on, `j` must still scroll down and `g` must not act as `G`.
+    public static func decode(_ character: Character, shift: Bool) -> ScrollKey {
+        let base = Character(character.lowercased())
+        return .character(shift ? Character(base.uppercased()) : base)
+    }
 }
 
 public enum ScrollInputResult: Sendable, Equatable {

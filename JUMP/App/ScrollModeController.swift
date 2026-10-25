@@ -16,8 +16,10 @@ final class ScrollModeController {
     private var activeIndex = 0
     private var input = ScrollInput()
     private var sequenceTimeout: Task<Void, Never>?
-    /// Where the pointer was before scroll mode moved it.
+    /// Where the pointer was before scroll mode moved it (wheel fallback only).
     private var originalPointer: CGPoint?
+    /// How the active area is scrolled.
+    private var output = ScrollOutput.wheel
     /// The direction key whose release stops the current scroll.
     private var heldKeyCode: UInt16?
     private var keyMonitor: Any?
@@ -91,7 +93,6 @@ final class ScrollModeController {
             areas = found
             isActive = true
             input = ScrollInput()
-            originalPointer = Pointer.location
             guard setActiveArea(0) else {
                 logger.error("Scroll mode could not receive keys; leaving it")
                 return deactivate()
@@ -111,10 +112,19 @@ final class ScrollModeController {
     private func setActiveArea(_ index: Int) -> Bool {
         stopScrolling()
         activeIndex = index
-        let frame = areas[index].frame
-        let receivesKeys = overlay.showOutline(frame)
-        // Scroll events go to whatever is under the pointer.
-        Pointer.move(to: CGPoint(x: frame.midX, y: frame.midY))
+        let area = areas[index]
+        let receivesKeys = overlay.showOutline(area.frame)
+        if let control = AXScrollControl.make(for: area.node, frame: area.frame) {
+            // Scroll bars are driven directly, so the pointer stays free.
+            output = .accessibility(control)
+        } else {
+            // Wheel events go to whatever is under the pointer.
+            output = .wheel
+            if originalPointer == nil {
+                originalPointer = Pointer.location
+            }
+            Pointer.move(to: CGPoint(x: area.frame.midX, y: area.frame.midY))
+        }
         return receivesKeys
     }
 
@@ -131,15 +141,15 @@ final class ScrollModeController {
         sequenceTimeout?.cancel()
         switch input.handle(key) {
         case .command(.scroll(let direction)):
-            scroller.startSmooth(direction)
+            scroller.startSmooth(direction, via: output)
             heldKeyCode = event.keyCode
         case .command(.halfPage(let direction)):
-            scroller.startHalfPage(direction, in: areas[activeIndex].frame)
+            scroller.startHalfPage(direction, in: areas[activeIndex].frame, via: output)
             heldKeyCode = event.keyCode
         case .command(.top):
-            scroller.scrollToEdge(top: true)
+            scroller.scrollToEdge(top: true, via: output)
         case .command(.bottom):
-            scroller.scrollToEdge(top: false)
+            scroller.scrollToEdge(top: false, via: output)
         case .command(.nextArea):
             setActiveArea((activeIndex + 1) % areas.count)
         case .command(.exit):
@@ -159,8 +169,10 @@ final class ScrollModeController {
         switch event.keyCode {
         case KeyCode.escape: .escape
         case KeyCode.tab: .tab
-        // `characters` keeps Shift, so `G` and `g` stay distinct.
-        default: event.characters?.first.map(ScrollKey.character)
+        // Only Shift decides the case, never Caps Lock (`G` vs `g`).
+        default: event.charactersIgnoringModifiers?.first.map {
+            ScrollKey.decode($0, shift: event.modifierFlags.contains(.shift))
+        }
         }
     }
 

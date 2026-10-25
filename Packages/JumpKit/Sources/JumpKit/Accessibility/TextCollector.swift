@@ -26,14 +26,35 @@ public nonisolated enum TextCollector {
     /// The text a node shows, or `nil`. Never `AXDescription`: that is the
     /// spoken label of icons, not text on screen.
     static func visibleText(role: String, value: String?, title: String?) -> String? {
-        let text: String? = if valueRoles.contains(role) { value } else if titleRoles.contains(role) { title } else { nil }
+        let text: String? = switch source(role: role) {
+        case .value: value
+        case .title: title
+        case nil: nil
+        }
         // Not trimmed: match ranges are UTF-16 offsets into the full AXValue.
         guard let text, !text.allSatisfy(\.isWhitespace) else { return nil }
         return text
     }
 
+    /// Which attribute holds the text a role shows.
+    static func source(role: String) -> TextSource? {
+        if valueRoles.contains(role) { .value } else if titleRoles.contains(role) { .title } else { nil }
+    }
+
     static func isEditable(role: String) -> Bool {
         editableRoles.contains(role)
+    }
+
+    /// The run a node with a usable frame contributes, or `nil` when it shows no text.
+    static func run<Node>(role: String, frame: CGRect, value: String?, title: String?, node: Node) -> TextRun<Node>? {
+        guard let source = source(role: role), let text = visibleText(role: role, value: value, title: title)
+        else { return nil }
+        return TextRun(text: text, source: source, frame: frame, role: role, isEditable: isEditable(role: role), node: node)
+    }
+
+    /// Whether `AXBoundsForRange` can measure ranges into the run's text.
+    static func measuresWordBounds<Node>(_ run: TextRun<Node>) -> Bool {
+        run.source == .value
     }
 
     static func plan<Node>(_ action: HintAction, for match: TextMatch<Node>) -> TextJumpPlan {
@@ -67,9 +88,11 @@ public nonisolated enum TextCollector {
     }
 
     /// Screen bounds of the match's characters, or `nil` when the app does not
-    /// report them (only `AXValue` text supports it; Ghostty never does).
+    /// report them (only `AXValue` text supports it; Ghostty never does). Control
+    /// titles are never measured: the run frame stands in for them.
     @concurrent
     public static func wordBounds(for match: TextMatch<AXNode>) async -> CGRect? {
+        guard measuresWordBounds(match.run) else { return nil }
         var range = CFRange(location: match.range.location, length: match.range.length)
         guard let parameter = AXValueCreate(.cfRange, &range) else { return nil }
         var bounds: CFTypeRef?
@@ -174,10 +197,9 @@ public nonisolated enum TextCollector {
 
         private mutating func add(_ element: AXUIElement, role: String, frame: CGRect?, value: String?, title: String?) {
             guard let frame, frame.width > 0, frame.height > 0, frame.intersects(windowFrame),
-                  let text = TextCollector.visibleText(role: role, value: value, title: title)
+                  let run = TextCollector.run(role: role, frame: frame, value: value, title: title, node: AXNode(element))
             else { return }
-            runs.append(TextRun(text: text, frame: frame, role: role, isEditable: TextCollector.isEditable(role: role),
-                                node: AXNode(element)))
+            runs.append(run)
         }
 
         /// Visible text and text fields of a web area through the search

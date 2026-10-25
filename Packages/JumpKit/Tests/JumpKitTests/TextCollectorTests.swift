@@ -36,6 +36,31 @@ struct TextCollectorTests {
         #expect(!TextCollector.isEditable(role: "AXButton"))
     }
 
+    private static let frame = CGRect(x: 0, y: 0, width: 200, height: 20)
+
+    @Test(arguments: ["AXButton", "AXCheckBox", "AXLink", "AXMenuItem"])
+    func controlTitlesAreNotMeasuredAsValueRanges(role: String) throws {
+        // AXBoundsForRange reads AXValue, so a range into the title would measure the wrong text.
+        let run = try #require(TextCollector.run(role: role, frame: Self.frame, value: "1", title: "Save", node: "n"))
+        #expect(run.text == "Save")
+        #expect(run.source == .title)
+        #expect(!TextCollector.measuresWordBounds(run))
+    }
+
+    @Test(arguments: ["AXStaticText", "AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"])
+    func valueTextIsStillMeasured(role: String) throws {
+        let run = try #require(TextCollector.run(role: role, frame: Self.frame, value: "Hello", title: "Label", node: "n"))
+        #expect(run.text == "Hello")
+        #expect(run.source == .value)
+        #expect(run.isEditable == TextCollector.isEditable(role: role))
+        #expect(TextCollector.measuresWordBounds(run))
+    }
+
+    @Test func nodesWithoutVisibleTextAddNoRun() {
+        #expect(TextCollector.run(role: "AXGroup", frame: Self.frame, value: "x", title: "Sidebar", node: "n") == nil)
+        #expect(TextCollector.run(role: "AXButton", frame: Self.frame, value: nil, title: " ", node: "n") == nil)
+    }
+
     private func match(editable: Bool) -> TextMatch<String> {
         let run = TextRun(text: "hello world", frame: CGRect(x: 0, y: 0, width: 200, height: 20),
                           role: editable ? "AXTextField" : "AXStaticText", isEditable: editable, node: "n")

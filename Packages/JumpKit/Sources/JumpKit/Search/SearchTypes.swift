@@ -3,10 +3,21 @@ import Foundation
 // Shared contract of text search mode: what the controller collects and
 // matches, and what the overlay draws.
 
+/// Which attribute of its element a run's text came from.
+public nonisolated enum TextSource: Sendable, Equatable {
+    /// `AXValue`: static text and text inputs. Character ranges into it are
+    /// what `AXBoundsForRange` measures.
+    case value
+    /// `AXTitle`: the label of a control. `AXBoundsForRange` reads `AXValue`,
+    /// so ranges into the title cannot be measured; the run frame stands in.
+    case title
+}
+
 /// A piece of visible text in the target window, as one accessibility element
 /// exposes it.
 public nonisolated struct TextRun<Node: Sendable>: Sendable {
     public let text: String
+    public let source: TextSource
     /// Element frame in AX coordinates (top-left origin, global).
     public let frame: CGRect
     public let role: String
@@ -14,8 +25,9 @@ public nonisolated struct TextRun<Node: Sendable>: Sendable {
     public let isEditable: Bool
     public let node: Node
 
-    public init(text: String, frame: CGRect, role: String, isEditable: Bool, node: Node) {
+    public init(text: String, source: TextSource = .value, frame: CGRect, role: String, isEditable: Bool, node: Node) {
         self.text = text
+        self.source = source
         self.frame = frame
         self.role = role
         self.isEditable = isEditable

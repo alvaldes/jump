@@ -86,7 +86,7 @@ public final class JumpSettings {
     private static func storedAppearance(in defaults: UserDefaults) -> HintAppearance {
         let standard = HintAppearance.standard
         let theme = defaults.string(forKey: Key.hintTheme).flatMap(HintTheme.init(rawValue:))
-        let size = (defaults.object(forKey: Key.hintSize) as? Double).map { CGFloat($0) }
+        let size = (defaults.object(forKey: Key.hintSize) as? Double).map { CGFloat($0).rounded() }
             .flatMap { HintAppearance.sizeRange.contains($0) ? $0 : nil }
         let glass = defaults.string(forKey: Key.hintGlass).flatMap(HintGlass.init(rawValue:))
         return HintAppearance(theme: theme ?? standard.theme, size: size ?? standard.size, glass: glass ?? standard.glass)

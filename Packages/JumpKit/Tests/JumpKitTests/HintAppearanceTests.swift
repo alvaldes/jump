@@ -95,6 +95,12 @@ struct JumpSettingsAppearanceTests {
         #expect(settings.hintAppearance.size == HintAppearance.sizeRange.upperBound)
     }
 
+    @Test func storedSizesAreRoundedOnLoad() {
+        let defaults = freshDefaults()
+        defaults.set(14.6, forKey: "hintSize")
+        #expect(JumpSettings(defaults: defaults).hintAppearance.size == 15)
+    }
+
     @Test func invalidStoredValuesFallBackToTheDefaults() {
         let defaults = freshDefaults()
         defaults.set("neon", forKey: "hintTheme")

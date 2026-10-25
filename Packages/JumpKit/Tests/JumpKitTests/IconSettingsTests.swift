@@ -44,13 +44,26 @@ struct IconSettingsTests {
         #expect(settings.appIcon == .official)
     }
 
-    @Test func everyMenuBarIconNamesABundledImage() {
-        #expect(MenuBarIcon.allCases.map(\.imageName) == ["MenuBarIconKeycap", "MenuBarIconOutline", "MenuBarIconFilled"])
+    /// The repository root, from this file's location.
+    private static let repository = URL(filePath: #filePath)
+        .deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+    @Test func everyMenuBarIconIsInTheAppsAssetCatalog() {
+        let catalog = Self.repository.appending(path: "JUMP/Resources/Assets.xcassets")
+        for icon in MenuBarIcon.allCases {
+            let imageset = catalog.appending(path: "\(icon.imageName).imageset")
+            #expect(FileManager.default.fileExists(atPath: imageset.path), "\(icon)")
+        }
     }
 
-    @Test func onlyTheGlyphIconNamesAnAlternateImage() {
+    @Test func theGlyphIconIsCompiledAsAnAlternateAppIcon() throws {
+        let name = try #require(AppIconChoice.glyph.imageName)
+        let bundle = Self.repository.appending(path: "JUMP/Resources/\(name).icon")
+        #expect(FileManager.default.fileExists(atPath: bundle.path))
+        let project = try String(contentsOf: Self.repository.appending(path: "project.yml"), encoding: .utf8)
+        #expect(project.contains("ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: \(name)"))
         #expect(AppIconChoice.official.imageName == nil)
-        #expect(AppIconChoice.glyph.imageName == "AppIconGlyph")
     }
 
     @Test func otherSettingsAreUnaffected() {

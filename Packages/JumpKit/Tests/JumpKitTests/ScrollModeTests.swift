@@ -1,3 +1,4 @@
+import Synchronization
 import Foundation
 import CoreGraphics
 import Testing
@@ -99,6 +100,45 @@ struct ScrollAreaFinderTests {
         #expect(frames == [CGRect(x: 600, y: 0, width: 400, height: 800), CGRect(x: 600, y: 0, width: 400, height: 800)])
     }
 
+    @Test func scrollAreasDeeperThanTheDepthLimitAreNotSearched() {
+        var deep = Node(id: "deep", role: "AXScrollArea", frame: CGRect(x: 0, y: 0, width: 500, height: 500))
+        for level in 0..<3 {
+            deep = Node(id: "g\(level)", role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 600, height: 600), kids: [deep])
+        }
+        let found = ScrollAreaFinder(maxDepth: 2).find(in: window([deep]), deadline: farFuture).map(\.node.id)
+        #expect(found == ["window"])
+    }
+
+    @Test func theNodeLimitStopsTheSearch() {
+        let areas = (0..<5).map {
+            Node(id: "a\($0)", role: "AXScrollArea", frame: CGRect(x: CGFloat($0) * 100, y: 0, width: 100, height: 100))
+        }
+        let found = ScrollAreaFinder(maxNodes: 3).find(in: window(areas), deadline: farFuture)
+        // The window counts as the first node: two areas fit, then the window fallback.
+        #expect(found.map(\.node.id) == ["a0", "a1", "window"])
+    }
+
+    @Test func aPassedDeadlineStillReturnsTheWindow() {
+        let root = window([Node(id: "area", role: "AXScrollArea", frame: CGRect(x: 0, y: 0, width: 500, height: 500))])
+        let found = ScrollAreaFinder().find(in: root, deadline: .now.advanced(by: .seconds(-1)))
+        #expect(found.map(\.node.id) == ["window"])
+    }
+
+    @Test func zeroSizeWrappersDoNotHideScrollAreas() {
+        let root = window([
+            Node(id: "wrapper", role: "AXGroup", frame: .zero, kids: [
+                Node(id: "area", role: "AXScrollArea", frame: CGRect(x: 10, y: 10, width: 300, height: 300)),
+            ]),
+        ])
+        #expect(ids(root) == ["area", "window"])
+    }
+
+    @Test func aWindowOnNoScreenKeepsItsOwnFrame() {
+        let root = Node(id: "window", role: "AXWindow", frame: CGRect(x: 5_000, y: 0, width: 400, height: 300))
+        let found = ScrollAreaFinder().find(in: root, deadline: farFuture, screens: [CGRect(x: 0, y: 0, width: 1000, height: 800)])
+        #expect(found.map(\.frame) == [CGRect(x: 5_000, y: 0, width: 400, height: 300)])
+    }
+
     @Test func webContentAndTablesAreNotSearched() {
         // Walking a web page or thousands of rows would cost far more than it finds.
         let root = window([
@@ -176,5 +216,24 @@ struct ScrollKeyDecodingTests {
 
     @Test func shiftMakesItUppercase() {
         #expect(ScrollKey.decode("g", shift: true) == .character("G"))
+    }
+}
+
+@Suite("AccessibilityWriter")
+struct AccessibilityWriterTests {
+    @Test func aBusyWriterDropsRepeatingTicksButQueuesOneShotCommands() async {
+        let writer = AccessibilityWriter()
+        let gate = DispatchSemaphore(value: 0)
+        let log = Mutex<[String]>([])
+
+        writer.submit { gate.wait(); log.withLock { $0.append("tick 1") } }
+        writer.submit { log.withLock { $0.append("tick 2") } }  // dropped: a write is running
+        writer.submit(dropIfBusy: false) { log.withLock { $0.append("edge") } }  // queued behind it
+        gate.signal()
+        await withCheckedContinuation { continuation in
+            writer.submit(dropIfBusy: false) { continuation.resume() }
+        }
+
+        #expect(log.withLock { $0 } == ["tick 1", "edge"])
     }
 }

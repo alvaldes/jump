@@ -115,7 +115,7 @@ public final class Scroller {
 /// Runs accessibility writes off the main thread, one at a time. A tick that
 /// arrives while the previous write is still running is dropped, so a slow
 /// app never builds a backlog that keeps scrolling after the key is released.
-private nonisolated final class AccessibilityWriter: Sendable {
+nonisolated final class AccessibilityWriter: Sendable {
     private let queue = DispatchQueue(label: "com.alvaldes.jump.scroll", qos: .userInteractive)
     private let busy = Atomic(false)
 

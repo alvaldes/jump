@@ -19,6 +19,10 @@ public final class ScreenTextRecognizer {
     /// Largest difference, in points, between the cached window frame and the
     /// focused window's (sum over origin and size) still taken as the same window.
     static let frameTolerance: CGFloat = 4
+    /// The same, against a freshly loaded list: allows for small differences
+    /// between the window's accessibility frame and its capture frame, never
+    /// another window of the same app.
+    static let reloadedFrameTolerance: CGFloat = 40
 
     public init() {}
 
@@ -38,11 +42,11 @@ public final class ScreenTextRecognizer {
     public func recognize(pid: pid_t, windowFrame: CGRect) async throws -> [TextRun<ScreenText>] {
         let lookupStart = ContinuousClock.now
         var reloaded = false
-        var window = cachedWindow(pid: pid, frame: windowFrame, strict: true)
+        var window = cachedWindow(pid: pid, frame: windowFrame, tolerance: Self.frameTolerance)
         if window == nil {
             try await reloadWindows()
             reloaded = true
-            window = cachedWindow(pid: pid, frame: windowFrame, strict: false)
+            window = cachedWindow(pid: pid, frame: windowFrame, tolerance: Self.reloadedFrameTolerance)
         }
         guard var window else { throw ScreenTextRecognizerError.windowNotFound }
         let lookupMs = Self.milliseconds(since: lookupStart)
@@ -54,7 +58,7 @@ public final class ScreenTextRecognizer {
         } catch where !reloaded {
             // The cached window closed (a new one can sit at the same frame).
             try await reloadWindows()
-            guard let fresh = cachedWindow(pid: pid, frame: windowFrame, strict: false) else {
+            guard let fresh = cachedWindow(pid: pid, frame: windowFrame, tolerance: Self.reloadedFrameTolerance) else {
                 throw ScreenTextRecognizerError.windowNotFound
             }
             window = fresh
@@ -88,13 +92,18 @@ public final class ScreenTextRecognizer {
         windows = content.windows.filter { $0.windowLayer == 0 }
     }
 
-    /// The window of `pid` closest to `frame`; with `strict`, only one within
-    /// `frameTolerance` (the cached list can be stale).
-    private func cachedWindow(pid: pid_t, frame: CGRect, strict: Bool) -> SCWindow? {
+    /// The window of `pid` closest to `frame`, if within `tolerance`.
+    private func cachedWindow(pid: pid_t, frame: CGRect, tolerance: CGFloat) -> SCWindow? {
         let candidates = windows.filter { $0.owningApplication?.processID == pid }
-        guard let closest = candidates.min(by: { Self.distance($0.frame, frame) < Self.distance($1.frame, frame) })
+        return Self.closestWindow(in: candidates.map(\.frame), to: frame, within: tolerance).map { candidates[$0] }
+    }
+
+    /// Index of the frame closest to `frame`, if within `tolerance` points.
+    nonisolated static func closestWindow(in frames: [CGRect], to frame: CGRect, within tolerance: CGFloat) -> Int? {
+        guard let closest = frames.indices.min(by: { distance(frames[$0], frame) < distance(frames[$1], frame) }),
+              distance(frames[closest], frame) <= tolerance
         else { return nil }
-        return !strict || Self.distance(closest.frame, frame) <= Self.frameTolerance ? closest : nil
+        return closest
     }
 
     /// At the display's pixel scale: Vision misses lines at 1x.

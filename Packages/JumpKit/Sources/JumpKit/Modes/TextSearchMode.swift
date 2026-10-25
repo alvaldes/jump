@@ -31,6 +31,9 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private let locateLimit: Int
     /// The OCR fallback; `nil` searches Accessibility text only.
     @ObservationIgnored private let screenText: ScreenTextSource?
+    /// Returns when a search stops waiting for OCR and answers with
+    /// Accessibility only.
+    @ObservationIgnored private let recognitionDeadline: @Sendable () async -> Void
     @ObservationIgnored private let logger = Logger(subsystem: "com.alvaldes.jump", category: "search")
 
     /// Opening plus text collection, the word-bounds lookup of the current
@@ -40,6 +43,7 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
     /// Screen text recognition of this search (exposed to tests).
     @ObservationIgnored private(set) var recognizeTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var recognitionTimeoutTask: Task<Void, Never>?
 
     @ObservationIgnored private var keys = SearchInput()
     @ObservationIgnored private var target = CGRect.null
@@ -79,8 +83,10 @@ public final class TextSearchMode<Node: Sendable> {
         locate: @escaping Locator,
         perform: @escaping Performer,
         locateLimit: Int = 100,
-        screenText: ScreenTextSource? = nil
+        screenText: ScreenTextSource? = nil,
+        recognitionDeadline: @escaping @Sendable () async -> Void = { try? await Task.sleep(for: .seconds(2)) }
     ) {
+        self.recognitionDeadline = recognitionDeadline
         self.overlay = overlay
         self.input = input
         self.isTrusted = isTrusted
@@ -112,6 +118,8 @@ public final class TextSearchMode<Node: Sendable> {
         pendingJump = nil
         recognizeTask?.cancel()
         recognizeTask = nil
+        recognitionTimeoutTask?.cancel()
+        recognitionTimeoutTask = nil
         session += 1
         recognizesScreenText = false
         screenRuns = nil
@@ -205,9 +213,27 @@ public final class TextSearchMode<Node: Sendable> {
             // Dismissed (and maybe reopened) while recognizing.
             guard !Task.isCancelled, session == thisSession else { return }
             recognizeTask = nil
+            recognitionTimeoutTask?.cancel()
+            recognitionTimeoutTask = nil
             screenRuns = recognized
             logger.info("OCR in \(app.name, privacy: .public): \(recognized.count) lines ready after \(Self.milliseconds(since: start)) ms")
             // Only queries without Accessibility matches change.
+            if runs != nil, matches.isEmpty {
+                refreshMatches()
+            }
+            resolvePendingJump()
+        }
+        // A capture or recognition that hangs must not keep the search at
+        // "Searching…" (and a pending Return waiting) forever.
+        let deadline = recognitionDeadline
+        recognitionTimeoutTask = Task {
+            await deadline()
+            guard !Task.isCancelled, session == thisSession, screenRuns == nil else { return }
+            recognizeTask?.cancel()
+            recognizeTask = nil
+            recognitionTimeoutTask = nil
+            screenRuns = []
+            logger.notice("OCR in \(app.name, privacy: .public) timed out; using Accessibility only")
             if runs != nil, matches.isEmpty {
                 refreshMatches()
             }

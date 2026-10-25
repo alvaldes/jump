@@ -106,3 +106,25 @@ struct ScreenTextTests {
         #expect((point.y * 100).rounded() / 100 == 95)
     }
 }
+
+@Suite("Screen text window lookup")
+struct ScreenTextWindowLookupTests {
+    private let focused = CGRect(x: 100, y: 100, width: 800, height: 600)
+
+    @Test func theClosestWindowWithinTheToleranceIsCaptured() {
+        let frames = [CGRect(x: 900, y: 100, width: 800, height: 600), CGRect(x: 102, y: 101, width: 800, height: 600)]
+        #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused, within: 4) == 1)
+    }
+
+    /// Another window of the same app must never stand in for the focused one:
+    /// its text would be mapped onto the focused window's frame.
+    @Test func aSiblingWindowElsewhereIsNeverCaptured() {
+        let frames = [CGRect(x: 900, y: 100, width: 800, height: 600)]
+        #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused, within: ScreenTextRecognizer.reloadedFrameTolerance) == nil)
+    }
+
+    @Test func aFreshListAcceptsSmallFrameDifferences() {
+        let frames = [CGRect(x: 100, y: 110, width: 800, height: 590)]
+        #expect(ScreenTextRecognizer.closestWindow(in: frames, to: focused, within: ScreenTextRecognizer.reloadedFrameTolerance) == 0)
+    }
+}

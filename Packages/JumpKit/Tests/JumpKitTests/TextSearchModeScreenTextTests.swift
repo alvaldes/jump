@@ -38,7 +38,8 @@ struct TextSearchModeScreenTextTests {
         enabled: Bool = true,
         source: Bool = true,
         collect: @escaping TextSearchMode<ModeNode>.Collector = { _ in Self.axRuns },
-        recognize: ScreenTextSource.Recognizer? = nil
+        recognize: ScreenTextSource.Recognizer? = nil,
+        recognitionDeadline: (@Sendable () async -> Void)? = nil
     ) -> TextSearchMode<ModeNode> {
         let jumps = self.jumps
         let screenJumps = self.screenJumps
@@ -61,7 +62,8 @@ struct TextSearchModeScreenTextTests {
             overlay: overlay, input: input, isTrusted: { true }, frontmostApp: { fakeApp },
             windowFrame: { _ in Self.window }, collect: collect, locate: { _ in nil },
             perform: { action, match in jumps.record(action, match) },
-            screenText: source ? screenText : nil
+            screenText: source ? screenText : nil,
+            recognitionDeadline: recognitionDeadline ?? { try? await Task.sleep(for: .seconds(60)) }
         )
     }
 
@@ -286,6 +288,30 @@ struct TextSearchModeScreenTextTests {
         await mode.recognizeTask?.value
         await mode.actionTask?.value
         #expect(screenJumps.calls.withLock { $0 } == ["press git status 4+6 at 60,300 60x16"])
+    }
+
+    @Test func aHungRecognitionTimesOutToAccessibilityOnly() async {
+        let recognizing = Gate()
+        let deadline = Gate()
+        let mode = makeMode(recognize: { _, _ in
+            await recognizing.pass()
+            return Self.screenRuns
+        }, recognitionDeadline: { await deadline.pass() })
+        mode.toggle()
+        await mode.scanTask?.value
+        await recognizing.reached()
+        type("status")
+        input.type("\r", keyCode: 36)
+        #expect(overlay.last == presentation("status", .collecting, []))
+
+        // Recognition never finishes: the deadline gives the final answer instead.
+        await deadline.reached()
+        deadline.open()
+        await mode.recognitionTimeoutTask?.value
+        #expect(overlay.last == presentation("status", .noMatches, []))
+        #expect(mode.isActive)
+        #expect(screenJumps.calls.withLock { $0 }.isEmpty)
+        recognizing.open()
     }
 
     // MARK: Accessibility only

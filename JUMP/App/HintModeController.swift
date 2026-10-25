@@ -80,14 +80,20 @@ final class HintModeController {
         scanTask = Task {
             // Usually already done on activation; covers apps that were in front before JUMP started.
             await webAccessibility.enable(pid: pid, bundleIdentifier: bundleIdentifier)
-            let outcome = await Result { try await FocusedWindowScanner.scan(pid: pid) }
+            // do/catch rather than the async `Result` initializer, which
+            // needs Swift 6.4 (CI builds with the runner's older Xcode).
+            let result: ScanResult<AXNode>?
+            do {
+                result = try await FocusedWindowScanner.scan(pid: pid)
+            } catch {
+                result = nil
+            }
             // Dismissed while scanning; nothing to show.
             guard !Task.isCancelled else { return }
             scanTask = nil
-            switch outcome {
-            case .success(let result):
+            if let result {
                 present(result, appName: appName, start: start)
-            case .failure:
+            } else {
                 lastSummary = "\(appName): no focused window"
                 logger.notice("Scan of \(appName, privacy: .public) found no focused window")
             }

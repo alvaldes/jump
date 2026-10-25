@@ -46,10 +46,17 @@ public nonisolated enum TextCollector {
     }
 
     /// The run a node with a usable frame contributes, or `nil` when it shows no text.
-    static func run<Node>(role: String, frame: CGRect, value: String?, title: String?, node: Node) -> TextRun<Node>? {
+    static func run<Node>(role: String, frame: CGRect, value: String?, title: String?, visibleRange: NSRange? = nil,
+                          node: Node) -> TextRun<Node>? {
         guard let source = source(role: role), let text = visibleText(role: role, value: value, title: title)
         else { return nil }
-        return TextRun(text: text, source: source, frame: frame, role: role, isEditable: isEditable(role: role), node: node)
+        return TextRun(text: text, source: source, frame: frame, role: role, isEditable: isEditable(role: role),
+                       visibleRange: visibleRange, node: node)
+    }
+
+    /// Roles whose text can scroll inside the element, so only part of it is on screen.
+    static func readsVisibleRange(role: String) -> Bool {
+        role == "AXTextArea" || role == "AXTextField"
     }
 
     /// Whether `AXBoundsForRange` can measure ranges into the run's text.
@@ -128,6 +135,18 @@ public nonisolated enum TextCollector {
         return true
     }
 
+    /// `AXVisibleCharacterRange`, or `nil` when the element does not report it.
+    private static func visibleCharacterRange(of element: AXUIElement) -> NSRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, "AXVisibleCharacterRange" as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+        var range = CFRange()
+        guard AXValueGetValue(value as! AXValue, .cfRange, &range), range.location >= 0, range.length >= 0
+        else { return nil }
+        return NSRange(location: range.location, length: range.length)
+    }
+
     private static func focusedWindow(pid: pid_t) -> AXUIElement? {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, AXNode.messagingTimeout)
@@ -197,7 +216,13 @@ public nonisolated enum TextCollector {
 
         private mutating func add(_ element: AXUIElement, role: String, frame: CGRect?, value: String?, title: String?) {
             guard let frame, frame.width > 0, frame.height > 0, frame.intersects(windowFrame),
-                  let run = TextCollector.run(role: role, frame: frame, value: value, title: title, node: AXNode(element))
+                  TextCollector.visibleText(role: role, value: value, title: title) != nil
+            else { return }
+            // Large text areas scroll: only the part on screen should match.
+            let visibleRange = TextCollector.readsVisibleRange(role: role)
+                ? TextCollector.visibleCharacterRange(of: element) : nil
+            guard let run = TextCollector.run(role: role, frame: frame, value: value, title: title,
+                                              visibleRange: visibleRange, node: AXNode(element))
             else { return }
             runs.append(run)
         }

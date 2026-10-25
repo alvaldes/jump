@@ -23,14 +23,19 @@ public nonisolated struct TextRun<Node: Sendable>: Sendable {
     public let role: String
     /// Text fields and areas: jumping places the caret instead of clicking.
     public let isEditable: Bool
+    /// The UTF-16 range of `text` scrolled into view (`AXVisibleCharacterRange`),
+    /// or `nil` when all of it counts as visible.
+    public let visibleRange: NSRange?
     public let node: Node
 
-    public init(text: String, source: TextSource = .value, frame: CGRect, role: String, isEditable: Bool, node: Node) {
+    public init(text: String, source: TextSource = .value, frame: CGRect, role: String, isEditable: Bool,
+                visibleRange: NSRange? = nil, node: Node) {
         self.text = text
         self.source = source
         self.frame = frame
         self.role = role
         self.isEditable = isEditable
+        self.visibleRange = visibleRange
         self.node = node
     }
 }

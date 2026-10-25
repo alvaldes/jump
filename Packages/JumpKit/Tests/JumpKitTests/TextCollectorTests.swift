@@ -61,6 +61,25 @@ struct TextCollectorTests {
         #expect(TextCollector.run(role: "AXButton", frame: Self.frame, value: nil, title: " ", node: "n") == nil)
     }
 
+    @Test(arguments: ["AXTextArea", "AXTextField"])
+    func scrollingInputsReadTheirVisibleRange(role: String) {
+        #expect(TextCollector.readsVisibleRange(role: role))
+    }
+
+    @Test(arguments: ["AXStaticText", "AXButton", "AXComboBox", "AXSearchField", "AXGroup"])
+    func otherRolesAreReadWhole(role: String) {
+        #expect(!TextCollector.readsVisibleRange(role: role))
+    }
+
+    @Test func theVisibleRangeIsKeptOnTheRun() throws {
+        let visible = NSRange(location: 1310, length: 128)
+        let run = try #require(TextCollector.run(role: "AXTextArea", frame: Self.frame, value: "text", title: nil,
+                                                 visibleRange: visible, node: "n"))
+        #expect(run.visibleRange == visible)
+        #expect(TextCollector.run(role: "AXStaticText", frame: Self.frame, value: "text", title: nil, node: "n")?
+            .visibleRange == nil)
+    }
+
     private func match(editable: Bool) -> TextMatch<String> {
         let run = TextRun(text: "hello world", frame: CGRect(x: 0, y: 0, width: 200, height: 20),
                           role: editable ? "AXTextField" : "AXStaticText", isEditable: editable, node: "n")

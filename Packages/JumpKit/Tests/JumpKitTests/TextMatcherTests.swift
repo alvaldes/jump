@@ -50,6 +50,29 @@ struct TextMatcherTests {
         #expect(found("go", in: runs) == ["topLeft:0+2", "topRight:0+2", "bottom:0+2"])
     }
 
+    private func area(_ text: String, visible: NSRange?) -> TextRun<String> {
+        TextRun(text: text, frame: CGRect(x: 10, y: 10, width: 200, height: 100), role: "AXTextArea",
+                isEditable: true, visibleRange: visible, node: "area")
+    }
+
+    @Test func onlyTheVisiblePartOfAScrolledAreaMatches() {
+        // Ranges stay offsets into the full text.
+        let text = "one two one two one"
+        #expect(found("one", in: [area(text, visible: NSRange(location: 4, length: 11))]) == ["area:8+3"])
+    }
+
+    @Test func aMatchCutByTheVisibleEdgeStillCounts() {
+        #expect(found("two", in: [area("one two", visible: NSRange(location: 0, length: 5))]) == ["area:4+3"])
+    }
+
+    @Test func nothingMatchesInAnAreaScrolledPastItsText() {
+        #expect(found("one", in: [area("one", visible: NSRange(location: 3, length: 0))]).isEmpty)
+    }
+
+    @Test func withoutAVisibleRangeTheWholeTextMatches() {
+        #expect(found("one", in: [area("one two one", visible: nil)]) == ["area:0+3", "area:8+3"])
+    }
+
     @Test(arguments: ["", " ", "  \n"])
     func anEmptyQueryMatchesNothing(query: String) {
         #expect(found(query, in: [run("some text")]).isEmpty)

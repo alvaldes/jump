@@ -6,16 +6,22 @@ public nonisolated enum TextMatcher {
 
     /// Every occurrence of `query` in `runs`, ignoring case and diacritics, in
     /// reading order: runs top to bottom and left to right, then by position
-    /// inside each run. Each match starts with its run's frame.
+    /// inside each run. Each match starts with its run's frame. In a run with a
+    /// visible range, only matches that reach into it count.
     public static func matches<Node>(of query: String, in runs: [TextRun<Node>]) -> [TextMatch<Node>] {
         guard !query.allSatisfy(\.isWhitespace) else { return [] }
         let matched = runs.compactMap { run -> (run: TextRun<Node>, ranges: [NSRange])? in
-            let ranges = occurrences(of: query, in: run.text)
+            let ranges = occurrences(of: query, in: run.text).filter { isVisible($0, in: run) }
             return ranges.isEmpty ? nil : (run, ranges)
         }
         return ReadingOrder.sorted(matched, frame: { $0.run.frame }).flatMap { run, ranges in
             ranges.map { TextMatch(run: run, range: $0, frame: run.frame) }
         }
+    }
+
+    private static func isVisible<Node>(_ range: NSRange, in run: TextRun<Node>) -> Bool {
+        guard let visible = run.visibleRange else { return true }
+        return NSIntersectionRange(range, visible).length > 0
     }
 
     /// Non-overlapping occurrences, as UTF-16 ranges. A range can be longer or

@@ -102,19 +102,33 @@ nonisolated struct HintPalette: Equatable {
     }
 }
 
+/// Liquid Glass for hint labels: off (drawn pills), regular (frosted) or
+/// clear (transparent, bends what is behind it).
+public nonisolated enum HintGlass: String, CaseIterable, Sendable {
+    case off, regular, clear
+
+    public var title: String {
+        switch self {
+        case .off: "Off"
+        case .regular: "Regular"
+        case .clear: "Clear"
+        }
+    }
+}
+
 /// How hint labels look: theme, label size and the Liquid Glass option.
 public nonisolated struct HintAppearance: Equatable, Sendable {
     public var theme: HintTheme
     /// Label font size in points; pills scale with it.
     public var size: CGFloat
-    public var glass: Bool
+    public var glass: HintGlass
 
-    public init(theme: HintTheme, size: CGFloat, glass: Bool) {
+    public init(theme: HintTheme, size: CGFloat, glass: HintGlass) {
         self.theme = theme
         self.size = size
         self.glass = glass
     }
 
-    public static let standard = HintAppearance(theme: .dark, size: 11, glass: false)
+    public static let standard = HintAppearance(theme: .dark, size: 11, glass: .off)
     public static let sizeRange: ClosedRange<CGFloat> = 9...20
 }

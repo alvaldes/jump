@@ -53,9 +53,9 @@ public final class JumpSettings {
         defaults.set(Double(hintAppearance.size), forKey: Key.hintSize)
     }
 
-    public func setHintGlass(_ glass: Bool) {
+    public func setHintGlass(_ glass: HintGlass) {
         hintAppearance.glass = glass
-        defaults.set(glass, forKey: Key.hintGlass)
+        defaults.set(glass.rawValue, forKey: Key.hintGlass)
     }
 
     /// Each stored value that is missing or invalid falls back to its default.
@@ -64,7 +64,7 @@ public final class JumpSettings {
         let theme = defaults.string(forKey: Key.hintTheme).flatMap(HintTheme.init(rawValue:))
         let size = (defaults.object(forKey: Key.hintSize) as? Double).map { CGFloat($0) }
             .flatMap { HintAppearance.sizeRange.contains($0) ? $0 : nil }
-        let glass = defaults.object(forKey: Key.hintGlass) as? Bool
+        let glass = defaults.string(forKey: Key.hintGlass).flatMap(HintGlass.init(rawValue:))
         return HintAppearance(theme: theme ?? standard.theme, size: size ?? standard.size, glass: glass ?? standard.glass)
     }
 

@@ -19,7 +19,7 @@ struct HintAppearanceTests {
     }
 
     @Test func darkIsTheDefaultAndKeepsTheOriginalLook() {
-        #expect(HintAppearance.standard == HintAppearance(theme: .dark, size: 11, glass: false))
+        #expect(HintAppearance.standard == HintAppearance(theme: .dark, size: 11, glass: .off))
         let palette = HintTheme.dark.palette(isDark: false, accent: .systemBlue)
         #expect(palette.fill == NSColor(white: 0.08, alpha: 0.9))
         #expect(palette.text == .white)
@@ -40,8 +40,8 @@ struct HintAppearanceTests {
     }
 
     @Test func pillsScaleWithTheSize() {
-        let small = HintsView.Metrics(appearance: HintAppearance(theme: .dark, size: 11, glass: false))
-        let large = HintsView.Metrics(appearance: HintAppearance(theme: .dark, size: 22, glass: false))
+        let small = HintsView.Metrics(appearance: HintAppearance(theme: .dark, size: 11, glass: .off))
+        let large = HintsView.Metrics(appearance: HintAppearance(theme: .dark, size: 22, glass: .off))
         let smallPill = small.pillSize(for: small.label("JU", typed: "", palette: HintTheme.dark.palette(isDark: true, accent: .systemBlue)))
         let largePill = large.pillSize(for: large.label("JU", typed: "", palette: HintTheme.dark.palette(isDark: true, accent: .systemBlue)))
         #expect(large.font.pointSize == 22)
@@ -77,9 +77,9 @@ struct JumpSettingsAppearanceTests {
 
         settings.setHintTheme(.classic)
         settings.setHintSize(15)
-        settings.setHintGlass(true)
+        settings.setHintGlass(.clear)
 
-        let expected = HintAppearance(theme: .classic, size: 15, glass: true)
+        let expected = HintAppearance(theme: .classic, size: 15, glass: .clear)
         #expect(settings.hintAppearance == expected)
         #expect(JumpSettings(defaults: defaults).hintAppearance == expected)
     }
@@ -118,7 +118,7 @@ struct JumpSettingsAppearanceTests {
 
 @Suite("Liquid Glass hints")
 struct GlassHintsTests {
-    private func makeView(glass: Bool) -> HintsView {
+    private func makeView(glass: HintGlass) -> HintsView {
         let view = HintsView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
         view.hintAppearance = HintAppearance(theme: .dark, size: 11, glass: glass)
         view.items = ["sa", "sd", "f"].enumerated().map { index, label in
@@ -135,21 +135,21 @@ struct GlassHintsTests {
     }
 
     @Test func eachVisibleHintGetsAGlassPill() {
-        let view = makeView(glass: true)
+        let view = makeView(glass: .regular)
         let glass = visibleGlass(in: view)
         #expect(glass.count == 3)
         #expect(glass.allSatisfy { $0.cornerRadius == $0.frame.height / 2 && $0.contentView != nil })
     }
 
     @Test func typingHidesTheGlassOfOtherHints() {
-        let view = makeView(glass: true)
+        let view = makeView(glass: .regular)
         view.typed = "s"
         view.layoutSubtreeIfNeeded()
         #expect(visibleGlass(in: view).count == 2)
     }
 
     @Test func glassViewsAreReused() {
-        let view = makeView(glass: true)
+        let view = makeView(glass: .regular)
         let first = Set(view.subviews.map(ObjectIdentifier.init))
         view.typed = "s"
         view.layoutSubtreeIfNeeded()
@@ -159,7 +159,7 @@ struct GlassHintsTests {
     }
 
     @Test func turningGlassOffHidesEveryGlassPill() {
-        let view = makeView(glass: true)
+        let view = makeView(glass: .regular)
         view.hintAppearance = .standard
         view.layoutSubtreeIfNeeded()
         #expect(visibleGlass(in: view).isEmpty)
@@ -167,20 +167,29 @@ struct GlassHintsTests {
 
     @Test func onlyColoredThemesTintTheGlass() {
         for theme in HintTheme.allCases {
-            let view = makeView(glass: true)
-            view.hintAppearance = HintAppearance(theme: theme, size: 11, glass: true)
+            let view = makeView(glass: .regular)
+            view.hintAppearance = HintAppearance(theme: theme, size: 11, glass: .regular)
             view.layoutSubtreeIfNeeded()
             let tinted = visibleGlass(in: view).map { $0.tintColor != nil }
             #expect(tinted == Array(repeating: theme == .accent || theme == .classic, count: 3), "\(theme)")
         }
     }
 
+    @Test(arguments: [HintGlass.regular, .clear])
+    func theChosenGlassStyleIsUsed(glass: HintGlass) {
+        let view = makeView(glass: .regular)
+        view.hintAppearance = HintAppearance(theme: .dark, size: 11, glass: glass)
+        view.layoutSubtreeIfNeeded()
+        let expected: NSGlassEffectView.Style = glass == .clear ? .clear : .regular
+        #expect(visibleGlass(in: view).map(\.style) == Array(repeating: expected, count: 3))
+    }
+
     @Test func withoutGlassNoGlassViewsAreCreated() {
-        #expect(makeView(glass: false).subviews.isEmpty)
+        #expect(makeView(glass: .off).subviews.isEmpty)
     }
 
     @Test func hidingEveryHintHidesTheGlass() {
-        let view = makeView(glass: true)
+        let view = makeView(glass: .regular)
         view.items = []
         view.layoutSubtreeIfNeeded()
         #expect(visibleGlass(in: view).isEmpty)

@@ -120,7 +120,7 @@ final class HintsView: NSView {
         if let outline {
             drawOutline(outline)
         }
-        guard !hintAppearance.glass else { return }
+        guard hintAppearance.glass == .off else { return }
         for pill in placedPills() where pill.frame.intersects(dirtyRect) {
             drawPill(pill)
         }
@@ -128,7 +128,8 @@ final class HintsView: NSView {
 
     override func layout() {
         super.layout()
-        let pills = hintAppearance.glass ? placedPills() : []
+        let pills = hintAppearance.glass == .off ? [] : placedPills()
+        let style: NSGlassEffectView.Style = hintAppearance.glass == .clear ? .clear : .regular
         while glassPills.count < pills.count {
             let glass = NSGlassEffectView()
             glass.contentView = GlassLabelView()
@@ -143,6 +144,7 @@ final class HintsView: NSView {
             let pill = pills[index]
             glass.frame = pill.frame
             glass.cornerRadius = pill.frame.height / 2
+            glass.style = style
             glass.tintColor = pill.palette.glassTint
             (glass.contentView as? GlassLabelView)?.show(pill.text, at: CGPoint(x: metrics.horizontalPadding, y: metrics.verticalPadding))
             glass.isHidden = false

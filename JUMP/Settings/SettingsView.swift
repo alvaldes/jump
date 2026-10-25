@@ -61,11 +61,15 @@ struct SettingsView: View {
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
-                Toggle("Liquid Glass", isOn: Binding(
+                Picker("Liquid Glass:", selection: Binding(
                     get: { settings.hintAppearance.glass },
                     set: { settings.setHintGlass($0) }
-                ))
-                Text("Applies to the next hints shown. Liquid Glass tints the glass with the theme's color.")
+                )) {
+                    ForEach(HintGlass.allCases, id: \.self) { glass in
+                        Text(glass.title).tag(glass)
+                    }
+                }
+                Text("Applies to the next hints shown. Regular glass is frosted, Clear is transparent; Accent and Classic tint it.")
                     .foregroundStyle(.secondary)
             }
 

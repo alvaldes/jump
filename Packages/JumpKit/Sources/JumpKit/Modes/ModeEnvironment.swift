@@ -206,6 +206,8 @@ public final class AppKitModeInput: ModeInputSource {
     /// Bumped on every start and stop, so a deferred key-loss check or a late
     /// focus report from an earlier session cannot end a newer one.
     private var session = 0
+    /// kVK_ANSI_Grave.
+    private static let graveKeyCode: UInt16 = 50
 
     public init(
         overlay: OverlayKeyboard,
@@ -226,7 +228,12 @@ public final class AppKitModeInput: ModeInputSource {
         session += 1
         let thisSession = session
         keyMonitor = keyEvents.add { event in
-            if event.type == .keyDown {
+            // ⌘` would cycle the target app's windows, but the overlay holds
+            // the keyboard, so it counts as leaving the target window.
+            if event.type == .keyDown, event.keyCode == Self.graveKeyCode,
+               event.modifierFlags.contains(.command) {
+                handler.focusLeft()
+            } else if event.type == .keyDown {
                 handler.keyDown(KeyPress(event))
             } else {
                 handler.keyUp(event.keyCode)

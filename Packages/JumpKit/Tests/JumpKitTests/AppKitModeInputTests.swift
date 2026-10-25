@@ -51,9 +51,11 @@ final class FakeKeyMonitor {
     }
 
     /// Returns what the monitor hands back to AppKit (`nil` swallows the key).
-    func send(_ type: NSEvent.EventType, keyCode: UInt16, characters: String) -> NSEvent? {
+    func send(
+        _ type: NSEvent.EventType, keyCode: UInt16, characters: String, modifiers: NSEvent.ModifierFlags = []
+    ) -> NSEvent? {
         let event = NSEvent.keyEvent(
-            with: type, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+            with: type, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: 0, context: nil,
             characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: keyCode
         )!
         return handler?(event)
@@ -111,6 +113,20 @@ struct AppKitModeInputTests {
         #expect(keys.send(.keyDown, keyCode: 0, characters: "a") == nil)
         #expect(keys.send(.keyUp, keyCode: 0, characters: "a") == nil)
         #expect(events.log == ["down a", "up 0"])
+    }
+
+    @Test func commandBacktickLeavesInsteadOfReachingTheMode() {
+        let input = makeInput()
+        input.start(events.handler, target: fakeApp)
+        #expect(keys.send(.keyDown, keyCode: 50, characters: "`", modifiers: .command) == nil)
+        #expect(events.log == ["focus left"])
+    }
+
+    @Test func backtickWithoutCommandStillReachesTheMode() {
+        let input = makeInput()
+        input.start(events.handler, target: fakeApp)
+        #expect(keys.send(.keyDown, keyCode: 50, characters: "`") == nil)
+        #expect(events.log == ["down `"])
     }
 
     // MARK: Focus leaving the target window

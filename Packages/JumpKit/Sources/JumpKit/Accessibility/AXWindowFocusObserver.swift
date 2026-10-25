@@ -64,21 +64,31 @@ public final class AXWindowFocusObserver: WindowFocusObserving {
         return AXNode.copyAttribute(kAXFocusedWindowAttribute, of: app)
     }
 
-    private func handle(_ notification: String) {
+    /// The notified element is the window that took focus. Reading the
+    /// focused window instead is not enough: Finder reports none for a moment
+    /// right after another of its windows takes focus.
+    private func handle(_ notification: String, element: AXUIElement) {
         guard let onFocusLeft else { return }
         if Self.leaveNotifications.contains(notification)
-            || WindowFocusChange.leftTarget(initial: initialWindow, current: focusedWindow()) {
+            || WindowFocusChange.leftTarget(initial: initialWindow, current: window(notifiedBy: element)) {
             onFocusLeft()
         }
     }
 
+    private func window(notifiedBy element: AXUIElement) -> AXUIElement? {
+        let role: String? = AXNode.copyAttribute(kAXRoleAttribute, of: element)
+        return role == kAXWindowRole ? element : focusedWindow()
+    }
+
     // Delivered on the main run loop, where the observer's source was added.
-    private static let callback: AXObserverCallback = { _, _, notification, refcon in
+    private static let callback: AXObserverCallback = { _, element, notification, refcon in
         guard let refcon else { return }
         let name = notification as String
         nonisolated(unsafe) let pointer = refcon
+        nonisolated(unsafe) let element = element
         MainActor.assumeIsolated {
-            Unmanaged<AXWindowFocusObserver>.fromOpaque(pointer).takeUnretainedValue().handle(name)
+            Unmanaged<AXWindowFocusObserver>.fromOpaque(pointer).takeUnretainedValue()
+                .handle(name, element: element)
         }
     }
 }

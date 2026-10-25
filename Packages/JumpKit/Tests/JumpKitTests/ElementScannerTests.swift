@@ -312,4 +312,22 @@ struct ElementScannerTests {
         #expect(!result.isTruncated)
         #expect(result.elements.map(\.role) == ["AXGroup"])
     }
+
+    @Test func aWindowWithNothingActionableIsACompleteEmptyScan() {
+        var webArea = node("web", role: "AXWebArea", frame: CGRect(x: 0, y: 0, width: 800, height: 600))
+        webArea.searchResults = []
+        let root = window([node("label", role: "AXStaticText"), webArea])
+        let result = ElementScanner().scan(root: root, deadline: farFuture)
+        #expect(result.elements.isEmpty)
+        #expect(result.visitedCount == 3)
+        #expect(!result.isTruncated)
+    }
+
+    @Test func aWindowThatDisappearedBeforeTheScanYieldsNothing() {
+        let gone = FakeNode(id: "window", attrs: nil, kids: [node("button", actions: ["AXPress"])])
+        let result = ElementScanner().scan(root: gone, deadline: farFuture)
+        #expect(result.elements.isEmpty)
+        #expect(result.visitedCount == 1)
+        #expect(!result.isTruncated)
+    }
 }

@@ -18,6 +18,11 @@ final class ActionLog: Sendable {
     }
 }
 
+/// Records calls made from the mode's async boundaries.
+final class CallLog: Sendable {
+    let calls = Mutex<[String]>([])
+}
+
 @Suite("HintMode lifecycle")
 struct HintModeLifecycleTests {
     let overlay = FakeOverlay()
@@ -34,6 +39,7 @@ struct HintModeLifecycleTests {
     private func makeMode(
         trusted: Bool = true,
         frontmost: FrontmostApp? = fakeApp,
+        prepareApp: @escaping (FrontmostApp) async -> Void = { _ in },
         scan: @escaping HintMode<ModeNode>.Scanner = { _ in
             ScanResult(elements: elements, visitedCount: 3, isTruncated: false)
         }
@@ -41,7 +47,7 @@ struct HintModeLifecycleTests {
         let actions = self.actions
         return HintMode(
             overlay: overlay, input: input, isTrusted: { trusted }, hintCharacters: { "sa" },
-            frontmostApp: { frontmost }, scan: scan,
+            frontmostApp: { frontmost }, prepareApp: prepareApp, scan: scan,
             perform: { action, element in actions.record(action, element) }
         )
     }
@@ -98,6 +104,49 @@ struct HintModeLifecycleTests {
         await scan?.value
         #expect(overlay.shownHints.isEmpty)
         #expect(!mode.isShowingHints)
+    }
+
+    @Test func preparesTheAppBeforeScanningIt() async {
+        // Chromium and Electron build their tree only once asked, so preparation must come first.
+        let log = CallLog()
+        let mode = makeMode(
+            prepareApp: { app in log.calls.withLock { $0.append("prepare \(app.pid) \(app.bundleIdentifier ?? "")") } },
+            scan: { app in
+                log.calls.withLock { $0.append("scan \(app.pid)") }
+                return ScanResult(elements: Self.elements, visitedCount: 3, isTruncated: false)
+            }
+        )
+        await show(mode)
+        #expect(log.calls.withLock { $0 } == ["prepare 42 com.example.target", "scan 42"])
+        #expect(mode.isShowingHints)
+    }
+
+    @Test(arguments: [false, true])
+    func aScanWithNoElementsShowsNothingAndEndsTheMode(truncated: Bool) async {
+        let mode = makeMode(scan: { _ in ScanResult(elements: [], visitedCount: 5, isTruncated: truncated) })
+        await show(mode)
+        #expect(overlay.shownHints.isEmpty)
+        #expect(!overlay.isVisible)
+        #expect(overlay.hideCount == 0)
+        #expect(!mode.isShowingHints)
+        #expect(!input.isListening)
+        #expect(mode.scanTask == nil)
+        let summary = mode.lastSummary ?? ""
+        #expect(summary.hasPrefix("Target: 0 hints in "))
+        #expect(summary.hasSuffix(truncated ? " ms (truncated)" : " ms"))
+    }
+
+    @Test func theHotkeyAfterAnEmptyScanScansAgain() async {
+        let scans = CallLog()
+        let mode = makeMode(scan: { _ in
+            scans.calls.withLock { $0.append("scan") }
+            return ScanResult(elements: [], visitedCount: 1, isTruncated: false)
+        })
+        await show(mode)
+        await show(mode)
+        #expect(scans.calls.withLock { $0 } == ["scan", "scan"])
+        #expect(overlay.shownHints.isEmpty)
+        #expect(await performed(mode).isEmpty)
     }
 
     // MARK: Selecting

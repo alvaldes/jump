@@ -2,11 +2,25 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// A scroll area with its accessibility control, prepared off the main thread.
-public nonisolated struct ScrollTarget: Sendable {
-    public let area: ScrollArea<AXNode>
+/// Scrolls one area without depending on the pointer (`AXScrollControl` in
+/// production; a fake in tests).
+public protocol ScrollControlling: Sendable, Equatable {
+    /// Called on a background queue.
+    nonisolated func scroll(_ direction: ScrollDirection, pixels: CGFloat) -> ScrollOutcome
+    nonisolated func scrollToEdge(top: Bool) -> ScrollOutcome
+}
+
+/// A scroll area with its control, prepared off the main thread.
+public nonisolated struct ScrollTarget<Control: ScrollControlling>: Sendable {
+    /// Visible part of the area in AX coordinates.
+    public let frame: CGRect
     /// `nil` when the area can only be scrolled with wheel events.
-    public var control: AXScrollControl?
+    public var control: Control?
+
+    public init(frame: CGRect, control: Control?) {
+        self.frame = frame
+        self.control = control
+    }
 }
 
 /// What happened to one scroll request.
@@ -31,7 +45,7 @@ public nonisolated enum ScrollMath {
 /// Scrolls an `AXScrollArea` by writing its scroll bars' values through the
 /// accessibility API. Unlike wheel events, this does not depend on what is
 /// under the pointer, so the user can move the mouse freely.
-public nonisolated struct AXScrollControl: @unchecked Sendable, Equatable {
+public nonisolated struct AXScrollControl: ScrollControlling, @unchecked Sendable {
     // AXUIElement handles are immutable and the AX API is thread-safe.
     private let area: AXUIElement
     private let verticalBar: AXUIElement?

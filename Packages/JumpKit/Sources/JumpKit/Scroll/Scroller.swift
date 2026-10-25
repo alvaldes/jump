@@ -8,16 +8,27 @@ public nonisolated struct ScrollDelta: Sendable, Equatable {
 }
 
 /// How scroll commands reach the app.
-public nonisolated enum ScrollOutput: Sendable {
+public nonisolated enum ScrollOutput<Control: ScrollControlling>: Sendable {
     /// Writes the area's scroll bar values: independent of the pointer.
-    case accessibility(AXScrollControl)
+    case accessibility(Control)
     /// Synthetic wheel events, delivered to whatever is under the pointer.
     case wheel
 }
 
-/// Turns scroll commands into continuous, half-page or edge scrolling
-/// (port of Vimac's `ChunkyScroller`).
-public final class Scroller {
+/// What scroll mode needs from a scroller (`Scroller` in production).
+public protocol ScrollDriving: AnyObject {
+    associatedtype Control: ScrollControlling
+    /// Called on the main thread with the failing control when the app
+    /// rejects an accessibility read or write.
+    var onAccessibilityFailure: ((Control) -> Void)? { get set }
+    func startSmooth(_ direction: ScrollDirection, via output: ScrollOutput<Control>)
+    func startHalfPage(_ direction: ScrollDirection, in area: CGRect, via output: ScrollOutput<Control>)
+    func scrollToEdge(top: Bool, via output: ScrollOutput<Control>)
+    func stop()
+}
+
+/// Scroll speeds and the wheel-event math (port of Vimac's `ChunkyScroller`).
+public nonisolated enum ScrollMetrics {
     /// Pixels per tick while a direction key is held, at 60 ticks per second.
     static let smoothStep: Int32 = 16
     static let smoothInterval: TimeInterval = 1.0 / 60
@@ -26,82 +37,11 @@ public final class Scroller {
     /// Large enough to reach either end of any document in one event (Vimac).
     static let edgeDistance = Int32(Int16.max)
 
-    private var timer: Timer?
-    private let writer = AccessibilityWriter()
-
-    /// Called on the main thread with the failing control when the app rejects
-    /// an accessibility read or write, so the caller can switch that area to
-    /// wheel events. Not called when there is simply nothing to scroll.
-    public var onAccessibilityFailure: ((AXScrollControl) -> Void)?
-
-    public init() {}
-
-    /// Scrolls continuously until `stop()`.
-    public func startSmooth(_ direction: ScrollDirection, via output: ScrollOutput) {
-        repeatStep(every: Self.smoothInterval, step(direction, distance: Self.smoothStep, via: output))
-    }
-
-    /// Jumps half the area at once, then repeats until `stop()`.
-    public func startHalfPage(_ direction: ScrollDirection, in area: CGRect, via output: ScrollOutput) {
-        repeatStep(every: Self.halfPageInterval, step(direction, distance: Self.halfPage(direction, of: area), via: output))
-    }
-
-    public func scrollToEdge(top: Bool, via output: ScrollOutput) {
-        stop()
-        switch output {
-        case .accessibility(let control):
-            let report = failureReporter()
-            // A one-shot command must not be dropped like a repeating tick.
-            writer.submit(dropIfBusy: false) {
-                if control.scrollToEdge(top: top) == .failed { report(control) }
-            }
-        case .wheel:
-            Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance,
-                                      naturalScrolling: Self.isNaturalScrolling()))
-        }
-    }
-
-    public func stop() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    private func step(_ direction: ScrollDirection, distance: Int32, via output: ScrollOutput) -> @MainActor () -> Void {
-        switch output {
-        case .accessibility(let control):
-            let writer = self.writer
-            let report = failureReporter()
-            return {
-                writer.submit {
-                    if control.scroll(direction, pixels: CGFloat(distance)) == .failed { report(control) }
-                }
-            }
-        case .wheel:
-            let delta = Self.wheelDelta(direction, distance: distance, naturalScrolling: Self.isNaturalScrolling())
-            return { Self.post(delta) }
-        }
-    }
-
-    /// A thread-safe way for background writes to reach `onAccessibilityFailure`.
-    private func failureReporter() -> @Sendable (AXScrollControl) -> Void {
-        { [weak self] control in
-            Task { @MainActor in self?.onAccessibilityFailure?(control) }
-        }
-    }
-
-    private func repeatStep(every interval: TimeInterval, _ step: @escaping @MainActor () -> Void) {
-        stop()
-        step()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-            MainActor.assumeIsolated { step() }
-        }
-    }
-
     /// Positive wheel values move the content down/right toward the start,
     /// so scrolling down or right uses negative values. macOS also applies the
     /// user's natural-scrolling inversion to synthesized wheel events, so the
     /// sign is flipped back when it is on.
-    nonisolated static func wheelDelta(_ direction: ScrollDirection, distance: Int32, naturalScrolling: Bool) -> ScrollDelta {
+    static func wheelDelta(_ direction: ScrollDirection, distance: Int32, naturalScrolling: Bool) -> ScrollDelta {
         let signed = naturalScrolling ? -distance : distance
         return switch direction {
         case .up: ScrollDelta(horizontal: 0, vertical: signed)
@@ -113,22 +53,96 @@ public final class Scroller {
 
     /// System Settings > Trackpad/Mouse > Natural scrolling, read on every
     /// scroll so a change applies immediately. On by default in macOS.
-    nonisolated static func isNaturalScrolling(defaults: UserDefaults = .standard) -> Bool {
+    static func isNaturalScrolling(defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true
     }
 
-    nonisolated static func halfPage(_ direction: ScrollDirection, of area: CGRect) -> Int32 {
+    static func halfPage(_ direction: ScrollDirection, of area: CGRect) -> Int32 {
         switch direction {
         case .up, .down: Int32(area.height / 2)
         case .left, .right: Int32(area.width / 2)
         }
     }
 
-    private nonisolated static func post(_ delta: ScrollDelta) {
+    static func post(_ delta: ScrollDelta) {
         CGEvent(
             scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
             wheel1: delta.vertical, wheel2: delta.horizontal, wheel3: 0
         )?.post(tap: .cghidEventTap)
+    }
+}
+
+/// Turns scroll commands into continuous, half-page or edge scrolling.
+public final class Scroller<Control: ScrollControlling>: ScrollDriving {
+    private var timer: Timer?
+    private let writer = AccessibilityWriter()
+
+    /// Not called when there is simply nothing to scroll.
+    public var onAccessibilityFailure: ((Control) -> Void)?
+
+    public init() {}
+
+    /// Scrolls continuously until `stop()`.
+    public func startSmooth(_ direction: ScrollDirection, via output: ScrollOutput<Control>) {
+        repeatStep(every: ScrollMetrics.smoothInterval, step(direction, distance: ScrollMetrics.smoothStep, via: output))
+    }
+
+    /// Jumps half the area at once, then repeats until `stop()`.
+    public func startHalfPage(_ direction: ScrollDirection, in area: CGRect, via output: ScrollOutput<Control>) {
+        repeatStep(every: ScrollMetrics.halfPageInterval,
+                   step(direction, distance: ScrollMetrics.halfPage(direction, of: area), via: output))
+    }
+
+    public func scrollToEdge(top: Bool, via output: ScrollOutput<Control>) {
+        stop()
+        switch output {
+        case .accessibility(let control):
+            let report = failureReporter()
+            // A one-shot command must not be dropped like a repeating tick.
+            writer.submit(dropIfBusy: false) {
+                if control.scrollToEdge(top: top) == .failed { report(control) }
+            }
+        case .wheel:
+            ScrollMetrics.post(ScrollMetrics.wheelDelta(top ? .up : .down, distance: ScrollMetrics.edgeDistance,
+                                                        naturalScrolling: ScrollMetrics.isNaturalScrolling()))
+        }
+    }
+
+    public func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func step(_ direction: ScrollDirection, distance: Int32, via output: ScrollOutput<Control>) -> @MainActor () -> Void {
+        switch output {
+        case .accessibility(let control):
+            let writer = self.writer
+            let report = failureReporter()
+            return {
+                writer.submit {
+                    if control.scroll(direction, pixels: CGFloat(distance)) == .failed { report(control) }
+                }
+            }
+        case .wheel:
+            let delta = ScrollMetrics.wheelDelta(direction, distance: distance,
+                                                 naturalScrolling: ScrollMetrics.isNaturalScrolling())
+            return { ScrollMetrics.post(delta) }
+        }
+    }
+
+    /// A thread-safe way for background writes to reach `onAccessibilityFailure`.
+    private func failureReporter() -> @Sendable (Control) -> Void {
+        { [weak self] control in
+            Task { @MainActor in self?.onAccessibilityFailure?(control) }
+        }
+    }
+
+    private func repeatStep(every interval: TimeInterval, _ step: @escaping @MainActor () -> Void) {
+        stop()
+        step()
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+            MainActor.assumeIsolated { step() }
+        }
     }
 }
 

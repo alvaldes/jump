@@ -44,7 +44,7 @@ public nonisolated enum FocusedWindowScanner {
         pid: pid_t,
         screens: [CGRect],
         budget: Duration = .milliseconds(150)
-    ) async throws -> [ScrollTarget] {
+    ) async throws -> [ScrollTarget<AXScrollControl>] {
         let deadline = ContinuousClock.now.advanced(by: budget)
         let app = AXNode(AXUIElementCreateApplication(pid))
         guard let window: AXUIElement = AXNode.copyAttribute("AXFocusedWindow", of: app.element) else {
@@ -56,7 +56,7 @@ public nonisolated enum FocusedWindowScanner {
         let controlDeadline = deadline.advanced(by: controlPreparationBudget)
         return areas.map { area in
             let control = ContinuousClock.now < controlDeadline ? AXScrollControl.make(for: area.node) : nil
-            return ScrollTarget(area: area, control: control)
+            return ScrollTarget(frame: area.frame, control: control)
         }
     }
 }

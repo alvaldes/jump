@@ -9,9 +9,19 @@ public nonisolated enum ElementActions {
     @concurrent
     public static func perform(_ action: HintAction, on element: ScannedElement<AXNode>) async {
         let point = clickPoint(role: element.role, frame: element.frame)
+        if case .press = action {
+            press(element, fallbackPoint: point)
+        } else {
+            click(action, at: point)
+        }
+    }
+
+    /// Synthesizes the action as pointer events at `point`: `press` is a
+    /// plain left click. Also used by text search, which has no element to press.
+    static func click(_ action: HintAction, at point: CGPoint) {
         switch action {
         case .press:
-            press(element, fallbackPoint: point)
+            click(at: point, button: .left, count: 1)
         case .rightClick:
             click(at: point, button: .right, count: 1)
         case .doubleClick:

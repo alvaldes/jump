@@ -100,3 +100,26 @@ struct TextCollectorTests {
         #expect(TextCollector.plan(action, for: match(editable: false)) == .click(action, at: CGPoint(x: 85, y: 10)))
     }
 }
+
+@Suite("TextCollector coarse runs")
+struct TextCollectorCoarseRunTests {
+    /// Terminals (Ghostty) expose their buffer as one text area without word
+    /// bounds: its matches only know the whole area's frame.
+    @Test func aTextAreaWithoutWordBoundsIsCoarse() {
+        #expect(TextCollector.isCoarse(role: "AXTextArea", supportsWordBounds: false))
+    }
+
+    @Test func measurableTextAreasAndOtherRolesAreNot() {
+        #expect(!TextCollector.isCoarse(role: "AXTextArea", supportsWordBounds: true))
+        #expect(!TextCollector.isCoarse(role: "AXStaticText", supportsWordBounds: false))
+        #expect(!TextCollector.isCoarse(role: "AXButton", supportsWordBounds: false))
+    }
+
+    @Test func runsKeepTheMark() {
+        let run = TextCollector.run(role: "AXTextArea", frame: CGRect(x: 0, y: 0, width: 400, height: 300),
+                                    value: "git status", title: nil, isCoarse: true, node: 1)
+        #expect(run?.isCoarse == true)
+        #expect(TextCollector.run(role: "AXStaticText", frame: .init(x: 0, y: 0, width: 10, height: 10),
+                                  value: "save", title: nil, node: 1)?.isCoarse == false)
+    }
+}

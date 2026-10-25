@@ -314,6 +314,40 @@ struct TextSearchModeScreenTextTests {
         recognizing.open()
     }
 
+    /// A terminal buffer: one text area whose matches only know its frame.
+    private static let terminalBuffer = [
+        TextRun(text: "$ git status", frame: CGRect(x: 0, y: 0, width: 800, height: 600), role: "AXTextArea",
+                isEditable: true, isCoarse: true, node: ModeNode(id: "buffer")),
+    ]
+
+    @Test func recognizedWordsBeatCoarseAccessibilityMatches() async {
+        let mode = makeMode(collect: { _ in Self.terminalBuffer })
+        await open(mode)
+        type("status")
+        #expect(overlay.last == presentation("status", .matches(selected: 0), [
+            CGRect(x: 60, y: 300, width: 60, height: 16), CGRect(x: 110, y: 400, width: 60, height: 16),
+        ]))
+        input.type("\r", keyCode: 36)
+        await mode.actionTask?.value
+        #expect(screenJumps.calls.withLock { $0 } == ["press git status 4+6 at 60,300 60x16"])
+        #expect(jumps.entries.withLock { $0 }.isEmpty)
+    }
+
+    @Test func coarseMatchesStillShowWhenRecognitionFindsNothing() async {
+        let mode = makeMode(collect: { _ in Self.terminalBuffer })
+        await open(mode)
+        // "$" is only in the buffer, not in any recognized line.
+        type("$")
+        #expect(overlay.last == presentation("$", .matches(selected: 0), [Self.terminalBuffer[0].frame]))
+    }
+
+    @Test func preciseAccessibilityMatchesStillWinOverRecognizedOnes() async {
+        let mode = makeMode(collect: { _ in Self.axRuns + Self.terminalBuffer })
+        await open(mode)
+        type("save")
+        #expect(overlay.last?.matches == [Self.axRuns[0].frame])
+    }
+
     // MARK: Accessibility only
 
     /// One session: open, type, navigate, jump.

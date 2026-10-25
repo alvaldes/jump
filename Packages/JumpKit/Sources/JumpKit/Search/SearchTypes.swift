@@ -26,16 +26,20 @@ public nonisolated struct TextRun<Node: Sendable>: Sendable {
     /// The UTF-16 range of `text` scrolled into view (`AXVisibleCharacterRange`),
     /// or `nil` when all of it counts as visible.
     public let visibleRange: NSRange?
+    /// Its matches can only be shown at the element's frame, much larger than
+    /// a word (a terminal buffer without `AXBoundsForRange`).
+    public let isCoarse: Bool
     public let node: Node
 
     public init(text: String, source: TextSource = .value, frame: CGRect, role: String, isEditable: Bool,
-                visibleRange: NSRange? = nil, node: Node) {
+                visibleRange: NSRange? = nil, isCoarse: Bool = false, node: Node) {
         self.text = text
         self.source = source
         self.frame = frame
         self.role = role
         self.isEditable = isEditable
         self.visibleRange = visibleRange
+        self.isCoarse = isCoarse
         self.node = node
     }
 }

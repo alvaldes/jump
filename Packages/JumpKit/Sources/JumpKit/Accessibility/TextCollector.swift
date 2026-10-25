@@ -47,11 +47,17 @@ public nonisolated enum TextCollector {
 
     /// The run a node with a usable frame contributes, or `nil` when it shows no text.
     static func run<Node>(role: String, frame: CGRect, value: String?, title: String?, visibleRange: NSRange? = nil,
-                          node: Node) -> TextRun<Node>? {
+                          isCoarse: Bool = false, node: Node) -> TextRun<Node>? {
         guard let source = source(role: role), let text = visibleText(role: role, value: value, title: title)
         else { return nil }
         return TextRun(text: text, source: source, frame: frame, role: role, isEditable: isEditable(role: role),
-                       visibleRange: visibleRange, node: node)
+                       visibleRange: visibleRange, isCoarse: isCoarse, node: node)
+    }
+
+    /// A text area that cannot measure words: its matches only know the whole
+    /// area, so a search prefers recognized words (OCR) over them.
+    static func isCoarse(role: String, supportsWordBounds: Bool) -> Bool {
+        role == "AXTextArea" && !supportsWordBounds
     }
 
     /// Roles whose text can scroll inside the element, so only part of it is on screen.
@@ -133,6 +139,20 @@ public nonisolated enum TextCollector {
         // Focus alone already helps; some fields ignore the selection write.
         AXUIElementSetAttributeValue(element, "AXSelectedTextRange" as CFString, value)
         return true
+    }
+
+    /// Whether the element measures its text: one `AXBoundsForRange` call on
+    /// its first character.
+    private static func supportsWordBounds(_ element: AXUIElement) -> Bool {
+        var range = CFRange(location: 0, length: 1)
+        guard let parameter = AXValueCreate(.cfRange, &range) else { return false }
+        var bounds: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element, "AXBoundsForRange" as CFString, parameter, &bounds) == .success,
+            let bounds, CFGetTypeID(bounds) == AXValueGetTypeID()
+        else { return false }
+        var box = CGRect.zero
+        return AXValueGetValue(bounds as! AXValue, .cgRect, &box) && box.width > 0 && box.height > 0
     }
 
     /// `AXVisibleCharacterRange`, or `nil` when the element does not report it.
@@ -221,8 +241,10 @@ public nonisolated enum TextCollector {
             // Large text areas scroll: only the part on screen should match.
             let visibleRange = TextCollector.readsVisibleRange(role: role)
                 ? TextCollector.visibleCharacterRange(of: element) : nil
+            let isCoarse = role == "AXTextArea"
+                && TextCollector.isCoarse(role: role, supportsWordBounds: TextCollector.supportsWordBounds(element))
             guard let run = TextCollector.run(role: role, frame: frame, value: value, title: title,
-                                              visibleRange: visibleRange, node: AXNode(element))
+                                              visibleRange: visibleRange, isCoarse: isCoarse, node: AXNode(element))
             else { return }
             runs.append(run)
         }

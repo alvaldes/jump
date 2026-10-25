@@ -218,7 +218,7 @@ public final class TextSearchMode<Node: Sendable> {
             screenRuns = recognized
             logger.info("OCR in \(app.name, privacy: .public): \(recognized.count) lines ready after \(Self.milliseconds(since: start)) ms")
             // Only queries without Accessibility matches change.
-            if runs != nil, matches.isEmpty {
+            if runs != nil, !hasPreciseMatch {
                 refreshMatches()
             }
             resolvePendingJump()
@@ -234,7 +234,7 @@ public final class TextSearchMode<Node: Sendable> {
             recognitionTimeoutTask = nil
             screenRuns = []
             logger.notice("OCR in \(app.name, privacy: .public) timed out; using Accessibility only")
-            if runs != nil, matches.isEmpty {
+            if runs != nil, !hasPreciseMatch {
                 refreshMatches()
             }
             resolvePendingJump()
@@ -244,8 +244,15 @@ public final class TextSearchMode<Node: Sendable> {
     /// The current query has no final answer yet: Accessibility is still
     /// collecting, or found nothing while OCR may still find it.
     private var awaitsResults: Bool {
-        runs == nil || (matches.isEmpty && recognizesScreenText && screenRuns == nil)
+        runs == nil || (!hasPreciseMatch && recognizesScreenText && screenRuns == nil)
     }
+
+    /// Accessibility answers the query when one of its matches can be
+    /// located precisely; coarse ones (a terminal buffer) give way to OCR.
+    private var hasPreciseMatch: Bool { matches.contains { !$0.run.isCoarse } }
+
+    /// The overlay shows recognized matches instead of Accessibility's.
+    private var showsScreenMatches: Bool { !screenMatches.isEmpty }
 
     /// Carries out a Return pressed before the results were in.
     private func resolvePendingJump() {
@@ -289,7 +296,7 @@ public final class TextSearchMode<Node: Sendable> {
     }
 
     /// How many matches the overlay shows, from whichever source has them.
-    private var matchCount: Int { matches.isEmpty ? screenMatches.count : matches.count }
+    private var matchCount: Int { showsScreenMatches ? screenMatches.count : matches.count }
 
     private func moveSelection(by offset: Int) {
         let count = matchCount
@@ -305,7 +312,7 @@ public final class TextSearchMode<Node: Sendable> {
         locateTask?.cancel()
         generation += 1
         matches = TextMatcher.matches(of: keys.query, in: runs)
-        screenMatches = matches.isEmpty ? ScreenTextLayout.matches(of: keys.query, in: screenRuns ?? []) : []
+        screenMatches = hasPreciseMatch ? [] : ScreenTextLayout.matches(of: keys.query, in: screenRuns ?? [])
         located = Array(repeating: false, count: matches.count)
         selected = 0
         overlay.showSearch(presentation())
@@ -338,7 +345,7 @@ public final class TextSearchMode<Node: Sendable> {
     }
 
     private func jump(_ action: HintAction) {
-        if matches.isEmpty, let screenText, screenMatches.indices.contains(selected) {
+        if showsScreenMatches, let screenText, screenMatches.indices.contains(selected) {
             return jumpOnScreen(action, to: screenMatches[selected], via: screenText)
         }
         guard matches.indices.contains(selected) else { return }
@@ -380,7 +387,7 @@ public final class TextSearchMode<Node: Sendable> {
         } else {
             .noMatches
         }
-        let frames = matches.isEmpty ? screenMatches.map(\.frame) : matches.map(\.frame)
+        let frames = showsScreenMatches ? screenMatches.map(\.frame) : matches.map(\.frame)
         return SearchPresentation(query: keys.query, status: status, matches: frames, windowFrame: target)
     }
 

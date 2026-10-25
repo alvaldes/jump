@@ -5,6 +5,8 @@ import SwiftUI
 struct SettingsView: View {
     let settings: JumpSettings
     let launchAtLogin: LaunchAtLogin
+    let screenRecording: ScreenRecordingPermission
+    let recognizer: ScreenTextRecognizer
 
     @State private var characters = ""
     @State private var charactersRejected = false
@@ -15,6 +17,22 @@ struct SettingsView: View {
                 KeyboardShortcuts.Recorder("Show hints:", name: .activateHints)
                 KeyboardShortcuts.Recorder("Scroll mode:", name: .activateScroll)
                 KeyboardShortcuts.Recorder("Search text:", name: .activateSearch)
+            }
+
+            Section {
+                Toggle("Recognize text on screen (OCR)", isOn: Binding(
+                    get: { settings.recognizesScreenText },
+                    set: { setRecognizesScreenText($0) }
+                ))
+                Text("When a window has no readable text, such as terminals, PDFs and images, text search reads it from the screen. Needs Screen Recording access.")
+                    .foregroundStyle(.secondary)
+                if settings.recognizesScreenText, !screenRecording.isGranted {
+                    Text("Allow JUMP in Screen & System Audio Recording to search text on screen; until then text search uses Accessibility only. JUMP may need to be reopened after allowing it.")
+                        .foregroundStyle(.orange)
+                    Button("Open Privacy Settings") {
+                        screenRecording.openPrivacySettings()
+                    }
+                }
             }
 
             Section {
@@ -134,6 +152,23 @@ struct SettingsView: View {
         .onAppear {
             characters = settings.hintCharacters
             launchAtLogin.refresh()
+            screenRecording.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Back from System Settings.
+            screenRecording.refresh()
+        }
+    }
+
+    /// Turning it on is the only time JUMP asks for Screen Recording.
+    private func setRecognizesScreenText(_ enabled: Bool) {
+        settings.setRecognizesScreenText(enabled)
+        guard enabled else { return }
+        if !screenRecording.isGranted {
+            screenRecording.request()
+        }
+        if screenRecording.isGranted {
+            Task { await recognizer.prefetch() }
         }
     }
 

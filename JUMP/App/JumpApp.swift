@@ -13,6 +13,8 @@ struct JumpApp: App {
     @State private var hintMode: LiveHintMode
     @State private var searchMode: LiveTextSearchMode
     @State private var launchAtLogin = LaunchAtLogin()
+    @State private var screenRecording = ScreenRecordingPermission()
+    private let recognizer: ScreenTextRecognizer
     private let services: AppServices
     private let switcher: ModeSwitcher<AXNode, Scroller<AXScrollControl>>
 
@@ -45,6 +47,7 @@ struct JumpApp: App {
             screens: ScreenGeometry.screenFramesInAXCoordinates,
             findTargets: { app, screens in try await FocusedWindowScanner.scrollTargets(pid: app.pid, screens: screens) }
         )
+        let recognizer = ScreenTextRecognizer()
         let searchMode = LiveTextSearchMode(
             overlay: overlay,
             input: AppKitModeInput(overlay: overlay),
@@ -54,7 +57,13 @@ struct JumpApp: App {
             windowFrame: { app in try await TextCollector.windowFrame(pid: app.pid) },
             collect: { app in try await TextCollector.collect(pid: app.pid) },
             locate: { match in await TextCollector.wordBounds(for: match) },
-            perform: { action, match in await TextCollector.jump(action, to: match) }
+            perform: { action, match in await TextCollector.jump(action, to: match) },
+            screenText: ScreenTextSource(
+                // Checked at each search: access can be granted or revoked at any time.
+                isEnabled: { settings.recognizesScreenText && ScreenTextRecognizer.hasScreenRecordingAccess },
+                recognize: { app, frame in try await recognizer.recognize(pid: app.pid, windowFrame: frame) },
+                perform: { action, match in await ScreenTextRecognizer.jump(action, to: match) }
+            )
         )
         let switcher = ModeSwitcher(hints: hintMode, scroll: scrollMode, search: searchMode)
 
@@ -63,10 +72,16 @@ struct JumpApp: App {
         _hintMode = State(initialValue: hintMode)
         _searchMode = State(initialValue: searchMode)
         self.services = services
+        self.recognizer = recognizer
         self.switcher = switcher
 
         // NSApp exists once the app finishes starting.
         DispatchQueue.main.async { DockPresence.apply(settings) }
+
+        // The window list takes ~100 ms to load; the first search should not wait for it.
+        if settings.recognizesScreenText, ScreenTextRecognizer.hasScreenRecordingAccess {
+            Task { await recognizer.prefetch() }
+        }
 
         // Track grants and revocations for the whole app lifetime.
         Task { await permission.monitor() }
@@ -90,7 +105,8 @@ struct JumpApp: App {
         .defaultLaunchBehavior(permission.isTrusted ? .suppressed : .presented)
 
         Settings {
-            SettingsView(settings: settings, launchAtLogin: launchAtLogin)
+            SettingsView(settings: settings, launchAtLogin: launchAtLogin, screenRecording: screenRecording,
+                         recognizer: recognizer)
         }
     }
 }

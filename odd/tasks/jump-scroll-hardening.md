@@ -12,10 +12,11 @@ Branch: `feat/scroll-hardening` (from `main` 61c6b1f) · Delivery: ask-on-risk �
 
 ## Tasks
 
-- T1 · S3 · inline · writer and finder tests · pending
-- T2 · S2 · inline · prepare AXScrollControls in the background scan · pending
-- T3 · S1 · inline · fall back to wheel on accessibility failure · pending
+- [x] T1 · S3 · inline · writer and finder tests · see git log · characterization tests (pass on first run, pin existing behavior)
+- [x] T2 · S2 · inline · prepare AXScrollControls in the background scan · 2b799b5 · grep: no AX calls left in ScrollModeController
+- [x] T3 · S1 · inline · fall back to wheel on accessibility failure · 2b799b5 · builds; failure path not exercised live (needs an app that rejects writes)
 
 ## Log
 
 - L1 (2026-10-24): "funciona bien, mergea scroll a main y súbelo. despues revisa esto: - Si una escritura por accesibilidad falla a mitad de camino, no pasa sola a la rueda. - Preparar cada área corre en el hilo principal: con una app colgada podría trabar a JUMP un instante. - Faltan tests de varias partes."
+- L2: 104/104 tests, Release builds. Also fixed a misplaced doc comment (a "- Parameter" line after @concurrent). The ScrollModeController lifecycle still has no automated test: it needs overlay/pointer/scanner injection (proposed separately).

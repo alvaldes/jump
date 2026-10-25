@@ -29,6 +29,11 @@ public final class Scroller {
     private var timer: Timer?
     private let writer = AccessibilityWriter()
 
+    /// Called on the main thread when an accessibility read or write fails
+    /// (the app rejected it, the scroll bar went away), so the caller can
+    /// switch the area to wheel events.
+    public var onAccessibilityFailure: (() -> Void)?
+
     public init() {}
 
     /// Scrolls continuously until `stop()`.
@@ -45,8 +50,11 @@ public final class Scroller {
         stop()
         switch output {
         case .accessibility(let control):
+            let report = failureReporter()
             // A one-shot command must not be dropped like a repeating tick.
-            writer.submit(dropIfBusy: false) { control.scrollToEdge(top: top) }
+            writer.submit(dropIfBusy: false) {
+                if !control.scrollToEdge(top: top) { report() }
+            }
         case .wheel:
             Self.post(Self.wheelDelta(top ? .up : .down, distance: Self.edgeDistance,
                                       naturalScrolling: Self.isNaturalScrolling()))
@@ -62,10 +70,22 @@ public final class Scroller {
         switch output {
         case .accessibility(let control):
             let writer = self.writer
-            return { writer.submit { control.scroll(direction, pixels: CGFloat(distance)) } }
+            let report = failureReporter()
+            return {
+                writer.submit {
+                    if !control.scroll(direction, pixels: CGFloat(distance)) { report() }
+                }
+            }
         case .wheel:
             let delta = Self.wheelDelta(direction, distance: distance, naturalScrolling: Self.isNaturalScrolling())
             return { Self.post(delta) }
+        }
+    }
+
+    /// A thread-safe way for background writes to reach `onAccessibilityFailure`.
+    private func failureReporter() -> @Sendable () -> Void {
+        { [weak self] in
+            Task { @MainActor in self?.onAccessibilityFailure?() }
         }
     }
 

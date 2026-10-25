@@ -12,7 +12,7 @@ final class ScrollModeController {
     private let logger = Logger(subsystem: "com.alvaldes.jump", category: "scroll")
 
     private var scanTask: Task<Void, Never>?
-    private var areas: [ScrollArea<AXNode>] = []
+    private var targets: [ScrollTarget] = []
     private var activeIndex = 0
     private var input = ScrollInput()
     private var sequenceTimeout: Task<Void, Never>?
@@ -20,8 +20,9 @@ final class ScrollModeController {
     private var originalPointer: CGPoint?
     /// How the active area is scrolled.
     private var output = ScrollOutput.wheel
-    /// The direction key whose release stops the current scroll.
+    /// The direction key whose release stops the current scroll, and what it started.
     private var heldKeyCode: UInt16?
+    private var heldCommand: ScrollCommand?
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
     private var keyLossObserver: (any NSObjectProtocol)?
@@ -39,6 +40,7 @@ final class ScrollModeController {
     init(permission: AccessibilityPermission, overlay: HintOverlay) {
         self.permission = permission
         self.overlay = overlay
+        scroller.onAccessibilityFailure = { [weak self] in self?.fallBackToWheel() }
     }
 
     /// Bound to the scroll-mode hotkey.
@@ -63,7 +65,7 @@ final class ScrollModeController {
             Pointer.move(to: originalPointer)
         }
         originalPointer = nil
-        areas = []
+        targets = []
     }
 
     private func activate() {
@@ -77,7 +79,7 @@ final class ScrollModeController {
         let start = ContinuousClock.now
         let screens = Self.screenFramesInAXCoordinates()
         scanTask = Task {
-            let found = (try? await FocusedWindowScanner.scrollAreas(pid: pid, screens: screens)) ?? []
+            let found = (try? await FocusedWindowScanner.scrollTargets(pid: pid, screens: screens)) ?? []
             guard !Task.isCancelled else { return }
             scanTask = nil
             // The user switched apps during the search: these areas belong to a
@@ -90,7 +92,7 @@ final class ScrollModeController {
                 logger.notice("No scroll area in \(appName, privacy: .public)")
                 return
             }
-            areas = found
+            targets = found
             isActive = true
             input = ScrollInput()
             guard setActiveArea(0) else {
@@ -112,25 +114,60 @@ final class ScrollModeController {
     private func setActiveArea(_ index: Int) -> Bool {
         stopScrolling()
         activeIndex = index
-        let area = areas[index]
-        let receivesKeys = overlay.showOutline(area.frame)
-        if let control = AXScrollControl.make(for: area.node) {
+        let target = targets[index]
+        let receivesKeys = overlay.showOutline(target.area.frame)
+        if let control = target.control {
             // Scroll bars are driven directly, so the pointer stays free.
             output = .accessibility(control)
         } else {
-            // Wheel events go to whatever is under the pointer.
-            output = .wheel
-            if originalPointer == nil {
-                originalPointer = Pointer.location
-            }
-            Pointer.move(to: CGPoint(x: area.frame.midX, y: area.frame.midY))
+            useWheel(for: target.area)
         }
         return receivesKeys
+    }
+
+    /// Wheel events go to whatever is under the pointer, so it moves onto the area.
+    private func useWheel(for area: ScrollArea<AXNode>) {
+        output = .wheel
+        if originalPointer == nil {
+            originalPointer = Pointer.location
+        }
+        Pointer.move(to: CGPoint(x: area.frame.midX, y: area.frame.midY))
+    }
+
+    /// The app stopped accepting scroll bar writes: continue with wheel events,
+    /// including a scroll the user is still holding.
+    private func fallBackToWheel() {
+        guard isActive, case .accessibility = output else { return }
+        logger.notice("Accessibility scrolling failed; using wheel events for this area")
+        targets[activeIndex].control = nil
+        useWheel(for: targets[activeIndex].area)
+        if let heldCommand {
+            start(heldCommand)
+        }
+    }
+
+    /// Starts a scroll that lasts until `keyCode` is released.
+    private func startHeld(_ command: ScrollCommand, keyCode: UInt16) {
+        start(command)
+        heldKeyCode = keyCode
+        heldCommand = command
+    }
+
+    private func start(_ command: ScrollCommand) {
+        switch command {
+        case .scroll(let direction):
+            scroller.startSmooth(direction, via: output)
+        case .halfPage(let direction):
+            scroller.startHalfPage(direction, in: targets[activeIndex].area.frame, via: output)
+        default:
+            break
+        }
     }
 
     private func stopScrolling() {
         scroller.stop()
         heldKeyCode = nil
+        heldCommand = nil
     }
 
     private func handleKeyDown(_ event: NSEvent) {
@@ -141,17 +178,15 @@ final class ScrollModeController {
         sequenceTimeout?.cancel()
         switch input.handle(key) {
         case .command(.scroll(let direction)):
-            scroller.startSmooth(direction, via: output)
-            heldKeyCode = event.keyCode
+            startHeld(.scroll(direction), keyCode: event.keyCode)
         case .command(.halfPage(let direction)):
-            scroller.startHalfPage(direction, in: areas[activeIndex].frame, via: output)
-            heldKeyCode = event.keyCode
+            startHeld(.halfPage(direction), keyCode: event.keyCode)
         case .command(.top):
             scroller.scrollToEdge(top: true, via: output)
         case .command(.bottom):
             scroller.scrollToEdge(top: false, via: output)
         case .command(.nextArea):
-            setActiveArea((activeIndex + 1) % areas.count)
+            setActiveArea((activeIndex + 1) % targets.count)
         case .command(.exit):
             deactivate()
         case .pending:

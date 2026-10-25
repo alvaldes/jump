@@ -2,6 +2,13 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
+/// A scroll area with its accessibility control, prepared off the main thread.
+public nonisolated struct ScrollTarget: Sendable {
+    public let area: ScrollArea<AXNode>
+    /// `nil` when the area can only be scrolled with wheel events.
+    public var control: AXScrollControl?
+}
+
 /// Converts a pixel distance into a scroll bar value (0 = start, 1 = end).
 public nonisolated enum ScrollMath {
     /// Returns `nil` when the content fits and cannot scroll.
@@ -57,9 +64,10 @@ public nonisolated struct AXScrollControl: @unchecked Sendable {
         return AXUIElementSetAttributeValue(bar, "AXValue" as CFString, NSNumber(value: next)) == .success
     }
 
-    public func scrollToEdge(top: Bool) {
-        guard let verticalBar else { return }
-        AXUIElementSetAttributeValue(verticalBar, "AXValue" as CFString, NSNumber(value: top ? 0.0 : 1.0))
+    @discardableResult
+    public func scrollToEdge(top: Bool) -> Bool {
+        guard let verticalBar else { return false }
+        return AXUIElementSetAttributeValue(verticalBar, "AXValue" as CFString, NSNumber(value: top ? 0.0 : 1.0)) == .success
     }
 
     private func documentSize() -> CGSize {

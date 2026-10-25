@@ -18,7 +18,7 @@ Branch: `feat/text-search` (from `main` 634a026, worktree `../jump-worktrees/tex
 ## Tasks
 
 - [ ] T1 · S1, S3–S8 · delegated (writer A, parallel) · core in JumpKit: `TextMatcher` (pure), search key/input state machine, `TextSearchMode<Node>` controller with fakes-based lifecycle tests, `ModeSwitcher` exclusion, AX `TextCollector` (collect, word bounds, caret placement, jump action)
-- [ ] T2 · S3, S4 · delegated (writer B, parallel) · overlay: `HintOverlay: SearchOverlayPresenting`, search box + highlights drawn in the theme (one draw pass)
+- [x] T2 · S3, S4 · delegated (writer B, parallel) · overlay: `HintOverlay: SearchOverlayPresenting`, search box + highlights drawn in the theme (one draw pass) · 8548439 · RED (missing types) → GREEN; mutation run caught 4 breaks; 207 pass · gap: showSearch key/ordering only live (T4)
 - [ ] T3 · S2, S6, S7 · inline · app wiring: ⌘⇧F shortcut + Settings recorder, `JumpApp` / `ModeSwitcher` wiring, menu entry
 - [ ] T4 · S3, S8 · inline · live test with the user + latency from the log
 

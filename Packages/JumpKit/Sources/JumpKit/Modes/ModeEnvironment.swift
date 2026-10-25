@@ -81,8 +81,10 @@ extension ScrollKey {
 public struct ModeInputHandler {
     public var keyDown: (KeyPress) -> Void
     public var keyUp: (_ keyCode: UInt16) -> Void
-    /// Another app came to the front.
-    public var otherAppActivated: () -> Void
+    /// The user moved focus away from the target window, with the mouse or
+    /// the keyboard: another app came to the front, or another window of the
+    /// target app took focus (⌘\`, a window manager such as AeroSpace).
+    public var focusLeft: () -> Void
     /// The overlay lost the keyboard without an app switch (e.g. a click in
     /// the target window); keys would no longer reach the mode.
     public var keyboardLost: () -> Void
@@ -90,19 +92,21 @@ public struct ModeInputHandler {
     public init(
         keyDown: @escaping (KeyPress) -> Void,
         keyUp: @escaping (UInt16) -> Void = { _ in },
-        otherAppActivated: @escaping () -> Void,
+        focusLeft: @escaping () -> Void,
         keyboardLost: @escaping () -> Void
     ) {
         self.keyDown = keyDown
         self.keyUp = keyUp
-        self.otherAppActivated = otherAppActivated
+        self.focusLeft = focusLeft
         self.keyboardLost = keyboardLost
     }
 }
 
-/// Delivers keys and app events to the active mode.
+/// Delivers keys and focus events to the active mode.
 public protocol ModeInputSource: AnyObject {
-    func start(_ handler: ModeInputHandler)
+    /// - Parameter target: The app the mode acts on; focus leaving its
+    ///   window ends the mode.
+    func start(_ handler: ModeInputHandler, target: FrontmostApp)
     func stop()
 }
 
@@ -152,26 +156,76 @@ public nonisolated struct FrontmostApp: Sendable, Equatable {
     }
 }
 
+/// What `AppKitModeInput` needs from the overlay.
+public protocol OverlayKeyboard: AnyObject {
+    /// Whether one of the overlay panels currently receives the keyboard.
+    var hasKeyPanel: Bool { get }
+    func isOverlayWindow(_ object: Any?) -> Bool
+}
+
+extension HintOverlay: OverlayKeyboard {}
+
+/// Watches one app for focus leaving the window that was focused at start.
+public protocol WindowFocusObserving: AnyObject {
+    func start(pid: pid_t, onFocusLeft: @escaping () -> Void)
+    func stop()
+}
+
+/// Adds and removes a local key monitor (`NSEvent`'s, in the app).
+public struct KeyEventMonitor {
+    public var add: (_ handler: @escaping (NSEvent) -> NSEvent?) -> Any?
+    public var remove: (_ monitor: Any) -> Void
+
+    public init(add: @escaping (@escaping (NSEvent) -> NSEvent?) -> Any?, remove: @escaping (Any) -> Void) {
+        self.add = add
+        self.remove = remove
+    }
+
+    public static let local = KeyEventMonitor(
+        add: { handler in NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp], handler: handler) },
+        remove: { NSEvent.removeMonitor($0) }
+    )
+}
+
 /// Live input: a local key monitor (the overlay panel is key, so keys arrive
-/// here instead of the target app), app activations, and overlay key loss.
+/// here instead of the target app), focus leaving the target window, and
+/// overlay key loss.
+///
+/// The overlay panel is non-activating, so a focus change that stays inside
+/// the target app (⌘\`, AeroSpace) neither activates an app nor takes the
+/// keyboard from the panel; only watching the target app's windows sees it.
 public final class AppKitModeInput: ModeInputSource {
-    private let overlay: HintOverlay
+    private let overlay: OverlayKeyboard
+    private let windowFocus: WindowFocusObserving
+    private let keyEvents: KeyEventMonitor
+    private let workspaceCenter: NotificationCenter
+    private let windowCenter: NotificationCenter
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
     private var keyLossObserver: (any NSObjectProtocol)?
-    /// Bumped on every start and stop, so a deferred key-loss check from an
-    /// earlier session cannot end a newer one.
+    /// Bumped on every start and stop, so a deferred key-loss check or a late
+    /// focus report from an earlier session cannot end a newer one.
     private var session = 0
 
-    public init(overlay: HintOverlay) {
+    public init(
+        overlay: OverlayKeyboard,
+        windowFocus: WindowFocusObserving = AXWindowFocusObserver(),
+        keyMonitor: KeyEventMonitor = .local,
+        workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        windowCenter: NotificationCenter = .default
+    ) {
         self.overlay = overlay
+        self.windowFocus = windowFocus
+        self.keyEvents = keyMonitor
+        self.workspaceCenter = workspaceCenter
+        self.windowCenter = windowCenter
     }
 
-    public func start(_ handler: ModeInputHandler) {
+    public func start(_ handler: ModeInputHandler, target: FrontmostApp) {
         stop()
         session += 1
         let thisSession = session
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+        keyMonitor = keyEvents.add { event in
             if event.type == .keyDown {
                 handler.keyDown(KeyPress(event))
             } else {
@@ -180,25 +234,29 @@ public final class AppKitModeInput: ModeInputSource {
             // Swallow every key while a mode is active.
             return nil
         }
-        appSwitchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+        appSwitchObserver = workspaceCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
         ) { _ in
-            MainActor.assumeIsolated { handler.otherAppActivated() }
+            MainActor.assumeIsolated { handler.focusLeft() }
         }
-        keyLossObserver = NotificationCenter.default.addObserver(
+        windowFocus.start(pid: target.pid) { [weak self] in
+            guard self?.session == thisSession else { return }
+            handler.focusLeft()
+        }
+        keyLossObserver = windowCenter.addObserver(
             forName: NSWindow.didResignKeyNotification,
             object: nil,
             queue: .main
-        ) { [weak self, overlay] notification in
-            let window = notification.object as? NSWindow
+        ) { [weak self] notification in
+            nonisolated(unsafe) let window = notification.object
             MainActor.assumeIsolated {
-                guard overlay.isOverlayWindow(window) else { return }
+                guard self?.overlay.isOverlayWindow(window) == true else { return }
                 // Tab across displays moves the keyboard to another overlay
                 // panel; only report a loss when none has it after this turn.
                 DispatchQueue.main.async {
-                    guard self?.session == thisSession, !overlay.hasKeyPanel else { return }
+                    guard let self, self.session == thisSession, !self.overlay.hasKeyPanel else { return }
                     handler.keyboardLost()
                 }
             }
@@ -208,14 +266,15 @@ public final class AppKitModeInput: ModeInputSource {
     public func stop() {
         session += 1
         if let keyMonitor {
-            NSEvent.removeMonitor(keyMonitor)
+            keyEvents.remove(keyMonitor)
         }
         if let appSwitchObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(appSwitchObserver)
+            workspaceCenter.removeObserver(appSwitchObserver)
         }
         if let keyLossObserver {
-            NotificationCenter.default.removeObserver(keyLossObserver)
+            windowCenter.removeObserver(keyLossObserver)
         }
+        windowFocus.stop()
         keyMonitor = nil
         appSwitchObserver = nil
         keyLossObserver = nil

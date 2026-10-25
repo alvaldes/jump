@@ -2,8 +2,8 @@ import CoreGraphics
 import OSLog
 
 /// Scroll mode: Vim keys scroll the focused window's largest scroll area;
-/// `Tab` moves to the next one. Exits with `Esc`, the hotkey, switching apps,
-/// or losing the keyboard.
+/// `Tab` moves to the next one. Exits with `Esc`, the hotkey, moving focus to
+/// another window, or losing the keyboard.
 public final class ScrollMode<Driver: ScrollDriving> {
     public typealias Control = Driver.Control
     public typealias TargetFinder = (_ app: FrontmostApp, _ screens: [CGRect]) async throws -> [ScrollTarget<Control>]
@@ -110,24 +110,24 @@ public final class ScrollMode<Driver: ScrollDriving> {
                 logger.error("Scroll mode could not receive keys; leaving it")
                 return deactivate()
             }
-            startListening()
+            startListening(on: app)
             let milliseconds = Int((ContinuousClock.now - start) / .milliseconds(1))
             logger.info("Scroll mode in \(app.name, privacy: .public): \(found.count) areas, ready after \(milliseconds) ms")
         }
     }
 
-    private func startListening() {
+    private func startListening(on app: FrontmostApp) {
         input.start(ModeInputHandler(
             keyDown: { [weak self] in self?.handleKeyDown($0) },
             keyUp: { [weak self] keyCode in
                 // Only releasing the key that started the scroll stops it.
                 if keyCode == self?.heldKeyCode { self?.stopScrolling() }
             },
-            otherAppActivated: { [weak self] in self?.deactivate() },
+            focusLeft: { [weak self] in self?.deactivate() },
             // Key-up events would no longer arrive and a held key would
             // scroll forever.
             keyboardLost: { [weak self] in self?.deactivate() }
-        ))
+        ), target: app)
     }
 
     @discardableResult

@@ -5,7 +5,7 @@ import OSLog
 /// Hint mode: scans the focused window, shows a label on every actionable
 /// element, and acts on the element whose label the user types.
 ///
-/// Dismissed by the hotkey, `Esc`, a typo, switching apps, or losing the keyboard.
+/// Dismissed by the hotkey, `Esc`, a typo, moving focus to another window, or losing the keyboard.
 @Observable
 public final class HintMode<Node: AccessibilityNode> {
     public typealias Scanner = (FrontmostApp) async throws -> ScanResult<Node>
@@ -116,7 +116,7 @@ public final class HintMode<Node: AccessibilityNode> {
                 focusPoint: CGPoint(x: first.element.frame.midX, y: first.element.frame.midY)
             )
             isShowingHints = true
-            startListening()
+            startListening(on: app)
         }
 
         let totalMs = Int((ContinuousClock.now - start) / .milliseconds(1))
@@ -129,12 +129,12 @@ public final class HintMode<Node: AccessibilityNode> {
             """)
     }
 
-    private func startListening() {
+    private func startListening(on app: FrontmostApp) {
         input.start(ModeInputHandler(
             keyDown: { [weak self] in self?.handleKeyDown($0) },
-            otherAppActivated: { [weak self] in self?.dismiss() },
+            focusLeft: { [weak self] in self?.dismiss() },
             keyboardLost: { [weak self] in self?.dismiss() }
-        ))
+        ), target: app)
     }
 
     private func handleKeyDown(_ press: KeyPress) {

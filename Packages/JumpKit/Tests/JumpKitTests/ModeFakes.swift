@@ -35,9 +35,15 @@ final class FakeOverlay: OverlayPresenting {
 /// Lets tests type keys and send app events to the active mode.
 final class FakeInput: ModeInputSource {
     private var handler: ModeInputHandler?
+    /// The app whose focus the mode asked to watch.
+    private(set) var target: FrontmostApp?
     var isListening: Bool { handler != nil }
 
-    func start(_ handler: ModeInputHandler) { self.handler = handler }
+    func start(_ handler: ModeInputHandler, target: FrontmostApp) {
+        self.handler = handler
+        self.target = target
+    }
+
     func stop() { handler = nil }
 
     func type(_ characters: String, keyCode: UInt16 = 0, shift: Bool = false, command: Bool = false,
@@ -53,7 +59,7 @@ final class FakeInput: ModeInputSource {
     }
 
     func release(keyCode: UInt16) { handler?.keyUp(keyCode) }
-    func switchApp() { handler?.otherAppActivated() }
+    func moveFocusAway() { handler?.focusLeft() }
     func loseKeyboard() { handler?.keyboardLost() }
 }
 

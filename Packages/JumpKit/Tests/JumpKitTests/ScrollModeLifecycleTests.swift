@@ -42,6 +42,12 @@ struct ScrollModeLifecycleTests {
         #expect(input.isListening)
     }
 
+    @Test func watchesTheFocusOfTheAppItActsOn() async {
+        let mode = makeMode()
+        await enter(mode)
+        #expect(input.target == fakeApp)
+    }
+
     @Test func doesNothingWithoutAccessibilityAccess() async {
         let mode = makeMode(trusted: false)
         await enter(mode)
@@ -74,14 +80,14 @@ struct ScrollModeLifecycleTests {
         #expect(!input.isListening)
     }
 
-    @Test(arguments: ["escape", "hotkey", "app switch", "keyboard lost"])
+    @Test(arguments: ["escape", "hotkey", "focus left", "keyboard lost"])
     func everyExitLeavesTheModeAndStopsListening(exit: String) async {
         let mode = makeMode()
         await enter(mode)
         switch exit {
         case "escape": input.press(keyCode: 53)
         case "hotkey": mode.toggle()
-        case "app switch": input.switchApp()
+        case "focus left": input.moveFocusAway()
         default: input.loseKeyboard()
         }
         #expect(!mode.isActive)

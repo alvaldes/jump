@@ -180,7 +180,13 @@ struct HintModeLifecycleTests {
 
     // MARK: Dismissing
 
-    @Test(arguments: ["escape", "typo", "hotkey", "app switch", "keyboard lost"])
+    @Test func watchesTheFocusOfTheAppItActsOn() async {
+        let mode = makeMode()
+        await show(mode)
+        #expect(input.target == fakeApp)
+    }
+
+    @Test(arguments: ["escape", "typo", "hotkey", "focus left", "keyboard lost"])
     func everyExitHidesHintsWithoutActing(exit: String) async {
         let mode = makeMode()
         await show(mode)
@@ -188,7 +194,7 @@ struct HintModeLifecycleTests {
         case "escape": input.press(keyCode: 53)
         case "typo": input.type("x")
         case "hotkey": mode.toggle()
-        case "app switch": input.switchApp()
+        case "focus left": input.moveFocusAway()
         default: input.loseKeyboard()
         }
         #expect(!mode.isShowingHints)

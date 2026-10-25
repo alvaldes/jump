@@ -143,8 +143,7 @@ final class HintsView: NSView {
             let pill = pills[index]
             glass.frame = pill.frame
             glass.cornerRadius = pill.frame.height / 2
-            // A lighter tint than the drawn fill lets the glass show through.
-            glass.tintColor = pill.palette.fill.withAlphaComponent(pill.palette.fill.alphaComponent * 0.6)
+            glass.tintColor = pill.palette.glassTint
             (glass.contentView as? GlassLabelView)?.show(pill.text, at: CGPoint(x: metrics.horizontalPadding, y: metrics.verticalPadding))
             glass.isHidden = false
         }

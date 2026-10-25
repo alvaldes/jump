@@ -165,6 +165,16 @@ struct GlassHintsTests {
         #expect(visibleGlass(in: view).isEmpty)
     }
 
+    @Test func onlyColoredThemesTintTheGlass() {
+        for theme in HintTheme.allCases {
+            let view = makeView(glass: true)
+            view.hintAppearance = HintAppearance(theme: theme, size: 11, glass: true)
+            view.layoutSubtreeIfNeeded()
+            let tinted = visibleGlass(in: view).map { $0.tintColor != nil }
+            #expect(tinted == Array(repeating: theme == .accent || theme == .classic, count: 3), "\(theme)")
+        }
+    }
+
     @Test func withoutGlassNoGlassViewsAreCreated() {
         #expect(makeView(glass: false).subviews.isEmpty)
     }

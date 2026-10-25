@@ -35,7 +35,8 @@ public nonisolated enum HintTheme: String, CaseIterable, Sendable {
             HintPalette(fill: NSColor(srgbRed: 1, green: 0.85, blue: 0.36, alpha: 1),
                         text: NSColor(srgbRed: 0.19, green: 0.15, blue: 0.02, alpha: 1),
                         typed: NSColor(srgbRed: 0.19, green: 0.15, blue: 0.02, alpha: 0.4),
-                        border: NSColor(srgbRed: 0.76, green: 0.54, blue: 0.13, alpha: 1))
+                        border: NSColor(srgbRed: 0.76, green: 0.54, blue: 0.13, alpha: 1),
+                        glassTint: NSColor(srgbRed: 1, green: 0.85, blue: 0.36, alpha: 0.6))
         }
     }
 
@@ -46,11 +47,11 @@ public nonisolated enum HintTheme: String, CaseIterable, Sendable {
         let base = accent.usingColorSpace(.sRGB) ?? accent
         func white(_ fill: NSColor) -> HintPalette {
             HintPalette(fill: fill.withAlphaComponent(0.95), text: .white, typed: NSColor(white: 1, alpha: 0.45),
-                        border: NSColor(white: 1, alpha: 0.25))
+                        border: NSColor(white: 1, alpha: 0.25), glassTint: fill.withAlphaComponent(0.6))
         }
         func black(_ fill: NSColor) -> HintPalette {
             HintPalette(fill: fill.withAlphaComponent(0.95), text: .black, typed: NSColor(white: 0, alpha: 0.45),
-                        border: NSColor(white: 0, alpha: 0.2))
+                        border: NSColor(white: 0, alpha: 0.2), glassTint: fill.withAlphaComponent(0.6))
         }
         let steps = stride(from: 0.0, through: 1.0, by: 0.05)
         if let readable = steps.prefix(8).lazy
@@ -74,6 +75,9 @@ nonisolated struct HintPalette: Equatable {
     /// Already typed characters.
     let typed: NSColor
     let border: NSColor
+    /// Liquid Glass tint. Dark and light glass need none (the label color
+    /// tells them apart); a strong tint would hide the glass.
+    var glassTint: NSColor? = nil
 
     /// WCAG contrast ratio of the text against the fill, in the worst case of
     /// whatever lies behind a translucent fill (black or white).

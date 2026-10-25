@@ -240,7 +240,14 @@ func runTextBench(arguments: [String]) async {
     // SCContentFilter asserts (CGS_REQUIRE_INIT) unless the process holds a window-server connection.
     _ = NSApplication.shared
     let runs = arguments.count > 3 ? Int(arguments[3]) ?? 5 : 5
-    let dumpPath = arguments.firstIndex(of: "--dump").map { arguments[$0 + 1] }
+    var dumpPath: String?
+    if let flag = arguments.firstIndex(of: "--dump") {
+        guard flag + 1 < arguments.count else {
+            print("usage: jump-bench text <app name> [runs] [--dump <file>]")
+            exit(2)
+        }
+        dumpPath = arguments[flag + 1]
+    }
     guard AXIsProcessTrusted() else { print("This terminal needs Accessibility access."); exit(1) }
     guard let app = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }) else {
         print("No running app named \(name)"); exit(1)
@@ -256,14 +263,18 @@ func runTextBench(arguments: [String]) async {
         manualSet = AXUIElementSetAttributeValue(appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue) == .success
         if manualSet { try? await Task.sleep(for: .seconds(1)) }
     }
-    defer {
+    // `exit` skips `defer`, so early exits restore it explicitly.
+    func restoreManualAccessibility() {
         if manualSet { AXUIElementSetAttributeValue(appElement, "AXManualAccessibility" as CFString, kCFBooleanFalse) }
     }
+    defer { restoreManualAccessibility() }
 
     var windowValue: CFTypeRef?
     guard AXUIElementCopyAttributeValue(appElement, "AXFocusedWindow" as CFString, &windowValue) == .success,
           let windowValue, CFGetTypeID(windowValue) == AXUIElementGetTypeID() else {
-        print("\(name) has no focused window"); exit(1)
+        print("\(name) has no focused window")
+        restoreManualAccessibility()
+        exit(1)
     }
     let window = windowValue as! AXUIElement
     var position: CFTypeRef?

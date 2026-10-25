@@ -29,9 +29,11 @@ public struct SearchInput: Sendable {
             query.removeLast()
             return .edited(query)
         default:
-            // ⌘ and ⌃ are app shortcuts; ⌥ only chooses the jump action, so it still types.
-            guard !press.command, !press.control, Self.isPrintable(press.characters) else { return .ignored }
-            query += press.characters
+            // ⌘ and ⌃ are app shortcuts; ⌥ only chooses the jump action, so it still
+            // types, and what the layout produced with it (`@` for ⌥2 on a Spanish layout).
+            let text = press.option ? press.typedCharacters : press.characters
+            guard !press.command, !press.control, Self.isPrintable(text) else { return .ignored }
+            query += text
             return .edited(query)
         }
     }

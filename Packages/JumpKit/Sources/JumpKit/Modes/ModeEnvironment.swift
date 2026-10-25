@@ -7,17 +7,23 @@ import AppKit
 public nonisolated struct KeyPress: Sendable, Equatable {
     public var keyCode: UInt16
     /// Typed characters ignoring modifiers (Caps Lock may still uppercase them).
+    /// Hint and scroll keys decode these.
     public var characters: String
+    /// The characters the keyboard layout produced with every modifier
+    /// applied (`@` for ⌥2 on a Spanish layout); empty for a dead key.
+    public var typedCharacters: String
     public var shift = false
     public var command = false
     public var option = false
     public var control = false
     public var isRepeat = false
 
-    public init(keyCode: UInt16, characters: String, shift: Bool = false, command: Bool = false,
-                option: Bool = false, control: Bool = false, isRepeat: Bool = false) {
+    /// - Parameter typedCharacters: Defaults to `characters`.
+    public init(keyCode: UInt16, characters: String, typedCharacters: String? = nil, shift: Bool = false,
+                command: Bool = false, option: Bool = false, control: Bool = false, isRepeat: Bool = false) {
         self.keyCode = keyCode
         self.characters = characters
+        self.typedCharacters = typedCharacters ?? characters
         self.shift = shift
         self.command = command
         self.option = option
@@ -44,6 +50,7 @@ extension KeyPress {
         self.init(
             keyCode: event.keyCode,
             characters: event.charactersIgnoringModifiers ?? "",
+            typedCharacters: event.characters ?? "",
             shift: flags.contains(.shift),
             command: flags.contains(.command),
             option: flags.contains(.option),

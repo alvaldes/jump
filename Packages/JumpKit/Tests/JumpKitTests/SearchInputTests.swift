@@ -5,9 +5,10 @@ import Testing
 struct SearchInputTests {
     private var input = SearchInput()
 
-    private func key(_ keyCode: UInt16, _ characters: String = "", shift: Bool = false, command: Bool = false,
-                     option: Bool = false, control: Bool = false) -> KeyPress {
-        KeyPress(keyCode: keyCode, characters: characters, shift: shift, command: command, option: option, control: control)
+    private func key(_ keyCode: UInt16, _ characters: String = "", typed: String? = nil, shift: Bool = false,
+                     command: Bool = false, option: Bool = false, control: Bool = false) -> KeyPress {
+        KeyPress(keyCode: keyCode, characters: characters, typedCharacters: typed, shift: shift, command: command,
+                 option: option, control: control)
     }
 
     @Test mutating func charactersAppendToTheQuery() {
@@ -19,6 +20,28 @@ struct SearchInputTests {
 
     @Test mutating func optionStillTypes() {
         #expect(input.handle(key(1, "s", option: true)) == .edited("s"))
+    }
+
+    @Test mutating func optionTypesWhatTheLayoutProduces() {
+        // ⌥2 on a Spanish layout.
+        #expect(input.handle(key(19, "2", typed: "@", option: true)) == .edited("@"))
+        #expect(input.handle(key(31, "o", typed: "ø", option: true)) == .edited("@ø"))
+    }
+
+    @Test mutating func withoutOptionTheKeyCharactersStillType() {
+        #expect(input.handle(key(1, "s", typed: "S")) == .edited("s"))
+    }
+
+    @Test mutating func optionDeadKeysTypeNothing() {
+        // ⌥e on a US layout starts an accent and produces no character yet.
+        #expect(input.handle(key(14, "e", typed: "", option: true)) == .ignored)
+        #expect(input.query == "")
+    }
+
+    @Test mutating func optionWithCommandOrControlIsStillAShortcut() {
+        #expect(input.handle(key(19, "2", typed: "@", command: true, option: true)) == .ignored)
+        #expect(input.handle(key(19, "2", typed: "@", option: true, control: true)) == .ignored)
+        #expect(input.query == "")
     }
 
     @Test mutating func shortcutsWithCommandOrControlAreIgnored() {

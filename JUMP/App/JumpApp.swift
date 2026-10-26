@@ -29,7 +29,7 @@ struct JumpApp: App {
         // One overlay for every mode: they never show at the same time.
         let overlay = HintOverlay(hintAppearance: { settings.hintAppearance },
                                   showsScrollOutline: { settings.showsScrollOutline })
-        let services = AppServices(permission: permission, overlay: overlay)
+        let services = AppServices(permission: permission, settings: settings, overlay: overlay)
         let webAccessibility = services.webAccessibility
         let settingsOpener = SettingsOpener()
 

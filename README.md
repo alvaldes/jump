@@ -14,7 +14,7 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 | ⌘⇧J | Scroll | Scrolls the focused window without the mouse: `h j k l`, `d u`, `gg G`, `Tab` to change area, `Esc` to leave. |
 | ⌘⇧F | Text search | Finds visible text in the focused window. `Tab` / `Shift-Tab` move between matches, `Return` jumps, `Esc` leaves. |
 
-All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves it and opens Settings.
+All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves it and opens Settings. Apps listed under Excluded apps (Settings, Shortcuts) keep those keys: JUMP's shortcuts stay off while one of them is in front.
 
 - **Actions with modifiers.** Holding a modifier while typing a label (or pressing `Return` in text search) chooses the action: none clicks (or places the caret in a text field), `Shift` right-clicks, `⌘` double-clicks, `⌥` only moves the pointer. Clicks wait until the modifier is released, so apps never see it.
 - **Text search** reads text through Accessibility. Matching ignores case and accents, and only counts what is on screen.

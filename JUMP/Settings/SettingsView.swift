@@ -73,7 +73,7 @@ struct SettingsView: View {
     private var pane: some View {
         switch area {
         case .general: GeneralSettings(settings: settings, launchAtLogin: launchAtLogin)
-        case .shortcuts: ShortcutsSettings()
+        case .shortcuts: ShortcutsSettings(settings: settings)
         case .appearance: AppearanceSettings(settings: settings)
         case .behavior: BehaviorSettings(settings: settings, screenRecording: screenRecording, recognizer: recognizer)
         case .permissions: PermissionsSettings(accessibility: accessibility, screenRecording: screenRecording)

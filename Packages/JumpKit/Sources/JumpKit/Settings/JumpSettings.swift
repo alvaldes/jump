@@ -16,6 +16,8 @@ public final class JumpSettings {
     public private(set) var showsScrollOutline: Bool
     /// Text search falls back to recognizing the window's text on screen (OCR).
     public private(set) var recognizesScreenText: Bool
+    /// Bundle identifiers of the apps where JUMP's shortcuts stay off, in the order they were added.
+    public private(set) var excludedApps: [String]
 
     private let defaults: UserDefaults
 
@@ -31,6 +33,7 @@ public final class JumpSettings {
         static let showInDock = "showInDock"
         static let appIcon = "appIcon"
         static let recognizeScreenText = "recognizeScreenText"
+        static let excludedApps = "excludedApps"
     }
 
     /// Labels need at least two characters to tell elements apart.
@@ -47,6 +50,7 @@ public final class JumpSettings {
         self.recognizesScreenText = defaults.object(forKey: Key.recognizeScreenText) as? Bool ?? false
         self.scrollSpeed = defaults.string(forKey: Key.scrollSpeed).flatMap(ScrollSpeed.init(rawValue:)) ?? .normal
         self.showsScrollOutline = defaults.object(forKey: Key.scrollOutline) as? Bool ?? true
+        self.excludedApps = defaults.object(forKey: Key.excludedApps) as? [String] ?? []
     }
 
     /// Stores the characters used for labels, lowercased, without duplicates or
@@ -111,6 +115,23 @@ public final class JumpSettings {
     public func setRecognizesScreenText(_ enabled: Bool) {
         recognizesScreenText = enabled
         defaults.set(enabled, forKey: Key.recognizeScreenText)
+    }
+
+    /// Turns JUMP's shortcuts off while this app is in front. Empty identifiers are ignored.
+    public func excludeApp(_ bundleIdentifier: String) {
+        guard !bundleIdentifier.isEmpty, !excludedApps.contains(bundleIdentifier) else { return }
+        excludedApps.append(bundleIdentifier)
+        defaults.set(excludedApps, forKey: Key.excludedApps)
+    }
+
+    public func includeApp(_ bundleIdentifier: String) {
+        excludedApps.removeAll { $0 == bundleIdentifier }
+        defaults.set(excludedApps, forKey: Key.excludedApps)
+    }
+
+    /// Apps without a bundle identifier cannot be listed, so they are never excluded.
+    public func isExcluded(bundleIdentifier: String?) -> Bool {
+        bundleIdentifier.map(excludedApps.contains) ?? false
     }
 
     /// Each stored value that is missing or invalid falls back to its default.

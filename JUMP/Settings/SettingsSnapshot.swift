@@ -27,7 +27,7 @@ enum SettingsSnapshot {
 
     private static func render(_ view: some View, appearance: NSAppearance.Name, to url: URL) {
         let hosting = NSHostingView(rootView: view)
-        hosting.frame = CGRect(x: 0, y: 0, width: 780, height: 560)
+        hosting.frame = CGRect(x: 0, y: 0, width: 780, height: 588)
         let window = NSWindow(contentRect: hosting.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: appearance)
         window.contentView = hosting

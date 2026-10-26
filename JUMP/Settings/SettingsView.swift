@@ -48,14 +48,19 @@ struct SettingsView: View {
             Divider()
             ScrollView {
                 pane
-                    .padding(28)
+                    .padding(.horizontal, 28)
+                    .padding(.top, WindowChrome.titleBarHeight + 12)
+                    .padding(.bottom, 28)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .scrollContentBackground(.hidden)
         }
-        .frame(width: 780, height: 560)
+        // The content runs under the transparent title bar: one background,
+        // whether or not the window is focused.
+        .ignoresSafeArea()
+        .frame(width: 780, height: 560 + WindowChrome.titleBarHeight)
         .background(Brand.backdrop(scheme))
-        .background(WindowTitle("JUMP"))
+        .background(WindowChrome(title: "JUMP"))
         .onDisappear { area = .about }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Back from System Settings.
@@ -132,22 +137,30 @@ struct SettingsSidebar: View {
             Spacer()
         }
         .padding(14)
+        .padding(.top, WindowChrome.titleBarHeight)
         .frame(width: 200)
         .background(.ultraThinMaterial)
     }
 }
 
-/// Names the hosting window: the `Settings` scene calls it "<app> Settings".
-private struct WindowTitle: NSViewRepresentable {
-    let title: String
+/// Shapes the hosting window: names it (the `Settings` scene calls it
+/// "<app> Settings") and makes its title bar transparent, so the system does
+/// not paint a separate strip that turns gray when the window loses focus.
+private struct WindowChrome: NSViewRepresentable {
+    static let titleBarHeight: CGFloat = 28
 
-    init(_ title: String) { self.title = title }
+    let title: String
 
     func makeNSView(context: Context) -> NSView { NSView() }
 
     func updateNSView(_ view: NSView, context: Context) {
         // The view joins its window after this pass.
-        DispatchQueue.main.async { view.window?.title = title }
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.title = title
+            window.titlebarAppearsTransparent = true
+            window.styleMask.insert(.fullSizeContentView)
+        }
     }
 }
 

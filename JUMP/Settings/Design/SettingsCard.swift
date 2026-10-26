@@ -29,7 +29,8 @@ struct SettingsCard<Content: View>: View {
             content
         }
         .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Grows to its row's height, so cards side by side match.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Brand.cardWash(scheme), in: .rect(cornerRadius: Brand.cardRadius))
         .background(Color(nsColor: .controlBackgroundColor).opacity(scheme == .dark ? 0.35 : 0.6),
                     in: .rect(cornerRadius: Brand.cardRadius))

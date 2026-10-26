@@ -51,6 +51,8 @@ struct AppearanceSettings: View {
                     .pickerStyle(.segmented)
                 }
             }
+            // The row takes the taller card's height and the shorter one stretches to it.
+            .fixedSize(horizontal: false, vertical: true)
 
             SettingsCard(title: "Letter case", symbol: "textformat") {
                 SettingRow(title: "Labels", detail: "Typing matches either way.") {

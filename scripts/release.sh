@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Builds the signed Release app for the tagged version and packs it into
-# dist/JUMP-<version>.dmg. With --upload it also attaches the .dmg to the
-# GitHub release for that tag, creating the release if it does not exist.
+# dist/JUMP.dmg. The name never changes so the website can link to
+# releases/latest/download/JUMP.dmg; the volume name carries the version.
+# With --upload it also attaches the .dmg to the GitHub release for that tag,
+# creating the release if it does not exist.
 #
 # Usage: scripts/release.sh [--upload]
 #
@@ -52,7 +54,7 @@ echo "Packing the disk image…"
 mkdir -p "$work/dmg" dist
 cp -R "$app" "$work/dmg/"
 ln -s /Applications "$work/dmg/Applications"
-dmg="dist/JUMP-$version.dmg"
+dmg="dist/JUMP.dmg"
 hdiutil create -quiet -volname "JUMP $version" -srcfolder "$work/dmg" -ov -format UDZO "$dmg"
 hdiutil verify -quiet "$dmg"
 

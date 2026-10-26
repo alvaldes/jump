@@ -98,7 +98,7 @@ struct JumpApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode)
+            MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode, settingsOpener: settingsOpener)
         } label: {
             MenuBarLabel(imageName: settings.menuBarIcon.imageName, opener: settingsOpener)
         }

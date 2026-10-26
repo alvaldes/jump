@@ -7,9 +7,9 @@ struct MenuContent: View {
     let permission: AccessibilityPermission
     let hintMode: LiveHintMode
     let searchMode: LiveTextSearchMode
+    let settingsOpener: SettingsOpener
 
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
 
     /// The hint shortcut as the user set it; it can be changed or removed.
     private var hintPrompt: String {
@@ -34,9 +34,7 @@ struct MenuContent: View {
         Divider()
 
         Button("Settings…") {
-            // A menu bar agent is not active; bring the window to the front.
-            NSApp.activate()
-            openSettings()
+            settingsOpener.open()
         }
         .keyboardShortcut(",")
 

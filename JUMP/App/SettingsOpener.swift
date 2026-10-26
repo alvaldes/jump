@@ -1,7 +1,7 @@
 import os
 import SwiftUI
 
-/// Opens Settings from outside SwiftUI views (⌘, inside a mode).
+/// Opens Settings in front: from the menu and from ⌘, inside a mode.
 ///
 /// SwiftUI only hands out `openSettings` to views, so the always-present menu
 /// bar label lends it here.

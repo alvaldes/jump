@@ -130,5 +130,5 @@ public nonisolated struct HintAppearance: Equatable, Sendable {
     }
 
     public static let standard = HintAppearance(theme: .dark, size: 11, glass: .off)
-    public static let sizeRange: ClosedRange<CGFloat> = 9...20
+    public static let sizeRange: ClosedRange<CGFloat> = 5...20
 }

@@ -95,6 +95,16 @@ struct JumpSettingsAppearanceTests {
         #expect(settings.hintAppearance.size == HintAppearance.sizeRange.upperBound)
     }
 
+    @Test func sizesGoDownToFivePoints() {
+        let settings = JumpSettings(defaults: freshDefaults())
+
+        settings.setHintSize(5)
+        #expect(settings.hintAppearance.size == 5)
+        settings.setHintSize(4)
+        #expect(settings.hintAppearance.size == 5)
+        #expect(HintAppearance.sizeRange == 5...20)
+    }
+
     @Test func storedSizesAreRoundedOnLoad() {
         let defaults = freshDefaults()
         defaults.set(14.6, forKey: "hintSize")

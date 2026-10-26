@@ -13,3 +13,6 @@ Config/Signing.local.xcconfig
 
 .DS_Store
 .codegraph/
+
+# Release disk images (scripts/release.sh)
+dist/

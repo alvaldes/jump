@@ -56,6 +56,14 @@ To keep it, sign with your own (free) Apple Development certificate:
 3. Set your `DEVELOPMENT_TEAM` in that file (it is git-ignored).
 4. `xcodegen generate`
 
+### Releasing
+
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`, commit, and tag the commit `v<version>`.
+2. `scripts/release.sh` builds the signed Release app and writes `dist/JUMP-<version>.dmg`. It refuses uncommitted changes, an untagged commit, and an ad-hoc signature (users would lose the Accessibility permission on every update).
+3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed.
+
+Until JUMP is notarized, macOS asks people to confirm the first launch (System Settings → Privacy & Security → Open Anyway).
+
 ## Project layout
 
 ```

@@ -254,9 +254,11 @@ public final class AppKitModeInput: ModeInputSource {
                event.modifierFlags.contains(.command) {
                 handler.focusLeft()
             } else if event.type == .keyDown, Self.isSettingsShortcut(event) {
-                // Ends the mode the same way leaving the window does.
-                handler.focusLeft()
+                // Opens while the overlay still has the keyboard, so the
+                // activation answers this key press; then ends the mode the
+                // same way leaving the window does.
                 openSettings()
+                handler.focusLeft()
             } else if event.type == .keyDown {
                 handler.keyDown(KeyPress(event))
             } else {

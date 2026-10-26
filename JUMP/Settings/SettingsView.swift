@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The areas of the Settings window, in sidebar order.
 enum SettingsArea: String, CaseIterable, Identifiable {
-    case general, shortcuts, appearance, behavior, permissions, about
+    case about, general, shortcuts, appearance, behavior, permissions
 
     var id: Self { self }
 
@@ -38,7 +38,8 @@ struct SettingsView: View {
     let screenRecording: ScreenRecordingPermission
     let recognizer: ScreenTextRecognizer
 
-    @State var area: SettingsArea = .general
+    /// Every opening starts on About.
+    @State var area: SettingsArea = .about
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -54,6 +55,8 @@ struct SettingsView: View {
         }
         .frame(width: 780, height: 560)
         .background(Brand.backdrop(scheme))
+        .background(WindowTitle("JUMP"))
+        .onDisappear { area = .about }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Back from System Settings.
             accessibility.refresh()
@@ -129,6 +132,20 @@ struct SettingsSidebar: View {
         .padding(14)
         .frame(width: 200)
         .background(.ultraThinMaterial)
+    }
+}
+
+/// Names the hosting window: the `Settings` scene calls it "<app> Settings".
+private struct WindowTitle: NSViewRepresentable {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        // The view joins its window after this pass.
+        DispatchQueue.main.async { view.window?.title = title }
     }
 }
 

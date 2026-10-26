@@ -86,8 +86,10 @@ final class HintsView: NSView {
         let horizontalPadding: CGFloat
         let verticalPadding: CGFloat
         let kerning: CGFloat
+        let labelCase: HintLabelCase
 
         init(appearance: HintAppearance) {
+            labelCase = appearance.labelCase
             let scale = appearance.size / HintAppearance.standard.size
             font = .monospacedSystemFont(ofSize: appearance.size, weight: .semibold)
             horizontalPadding = 6 * scale
@@ -96,7 +98,9 @@ final class HintsView: NSView {
         }
 
         func label(_ label: String, typed: String, palette: HintPalette) -> NSAttributedString {
-            let text = NSMutableAttributedString(string: label, attributes: [
+            // Labels are ASCII letters, so the typed range is the same in either case.
+            let shown = labelCase == .lower ? label.lowercased() : label
+            let text = NSMutableAttributedString(string: shown, attributes: [
                 .font: font,
                 .foregroundColor: palette.text,
                 .kern: kerning,

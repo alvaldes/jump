@@ -27,6 +27,27 @@ public protocol ScrollDriving: AnyObject {
     func stop()
 }
 
+/// How fast holding a direction key scrolls.
+public nonisolated enum ScrollSpeed: String, CaseIterable, Sendable {
+    case slow, normal, fast
+
+    public var title: String {
+        switch self {
+        case .slow: "Slow"
+        case .normal: "Normal"
+        case .fast: "Fast"
+        }
+    }
+
+    var pixelsPerTick: Int32 {
+        switch self {
+        case .slow: ScrollMetrics.smoothStep / 2
+        case .normal: ScrollMetrics.smoothStep
+        case .fast: ScrollMetrics.smoothStep * 2
+        }
+    }
+}
+
 /// Scroll speeds and the wheel-event math (port of Vimac's `ChunkyScroller`).
 public nonisolated enum ScrollMetrics {
     /// Pixels per tick while a direction key is held, at 60 ticks per second.
@@ -76,15 +97,19 @@ public nonisolated enum ScrollMetrics {
 public final class Scroller<Control: ScrollControlling>: ScrollDriving {
     private var timer: Timer?
     private let writer = AccessibilityWriter()
+    private let speed: () -> ScrollSpeed
 
     /// Not called when there is simply nothing to scroll.
     public var onAccessibilityFailure: ((Control) -> Void)?
 
-    public init() {}
+    /// - Parameter speed: Read when a scroll starts, so a change applies to the next one.
+    public init(speed: @escaping () -> ScrollSpeed = { .normal }) {
+        self.speed = speed
+    }
 
     /// Scrolls continuously until `stop()`.
     public func startSmooth(_ direction: ScrollDirection, via output: ScrollOutput<Control>) {
-        repeatStep(every: ScrollMetrics.smoothInterval, step(direction, distance: ScrollMetrics.smoothStep, via: output))
+        repeatStep(every: ScrollMetrics.smoothInterval, step(direction, distance: speed().pixelsPerTick, via: output))
     }
 
     /// Jumps half the area at once, then repeats until `stop()`.

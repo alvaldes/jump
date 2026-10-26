@@ -32,9 +32,12 @@ public final class HintOverlay {
 
     /// Read on every `show`, so appearance changes apply to the next hints.
     private let hintAppearance: () -> HintAppearance
+    private let showsScrollOutline: () -> Bool
 
-    public init(hintAppearance: @escaping () -> HintAppearance = { .standard }) {
+    public init(hintAppearance: @escaping () -> HintAppearance = { .standard },
+                showsScrollOutline: @escaping () -> Bool = { true }) {
         self.hintAppearance = hintAppearance
+        self.showsScrollOutline = showsScrollOutline
     }
 
     /// Creates the panels and warms up text rendering ahead of the first
@@ -97,6 +100,13 @@ public final class HintOverlay {
         isVisible = true
     }
 
+    /// The outline of `area` in a panel's coordinates, or `nil` when hidden or
+    /// on another screen. A hidden outline still lets the panel take the keyboard.
+    static func outline(_ area: CGRect, in panelFrame: CGRect, shown: Bool) -> CGRect? {
+        guard shown, panelFrame.intersects(area) else { return nil }
+        return area.offsetBy(dx: -panelFrame.minX, dy: -panelFrame.minY)
+    }
+
     /// Outlines one area (AX coordinates) for scroll mode and makes its panel
     /// key, so keystrokes reach JUMP without activating it. Returns whether the
     /// panel became key; without it no key would reach scroll mode.
@@ -107,12 +117,11 @@ public final class HintOverlay {
         syncPanels(with: screens)
         let appKitFrame = ScreenGeometry.appKitRect(fromAX: frame, primaryScreenHeight: primary.frame.height)
 
+        let shown = showsScrollOutline()
         for panel in panels {
             panel.hintsView.items = []
             panel.hintsView.search = nil
-            panel.hintsView.outline = panel.frame.intersects(appKitFrame)
-                ? appKitFrame.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
-                : nil
+            panel.hintsView.outline = Self.outline(appKitFrame, in: panel.frame, shown: shown)
             panel.orderFrontRegardless()
             panel.displayIfNeeded()
         }

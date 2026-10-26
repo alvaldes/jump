@@ -51,6 +51,22 @@ struct AppearanceSettings: View {
                     .pickerStyle(.segmented)
                 }
             }
+
+            SettingsCard(title: "Letter case", symbol: "textformat") {
+                SettingRow(title: "Labels", detail: "Typing matches either way.") {
+                    Picker("", selection: Binding(
+                        get: { settings.hintAppearance.labelCase },
+                        set: { settings.setHintLabelCase($0) }
+                    )) {
+                        ForEach(HintLabelCase.allCases, id: \.self) { labelCase in
+                            Text(labelCase.title).tag(labelCase)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 140)
+                }
+            }
         }
     }
 }

@@ -12,6 +12,8 @@ public final class JumpSettings {
     public private(set) var menuBarIcon: MenuBarIcon
     public private(set) var showInDock: Bool
     public private(set) var appIcon: AppIconChoice
+    public private(set) var scrollSpeed: ScrollSpeed
+    public private(set) var showsScrollOutline: Bool
     /// Text search falls back to recognizing the window's text on screen (OCR).
     public private(set) var recognizesScreenText: Bool
 
@@ -22,6 +24,9 @@ public final class JumpSettings {
         static let hintTheme = "hintTheme"
         static let hintSize = "hintSize"
         static let hintGlass = "hintGlass"
+        static let hintLabelCase = "hintLabelCase"
+        static let scrollSpeed = "scrollSpeed"
+        static let scrollOutline = "scrollOutline"
         static let menuBarIcon = "menuBarIcon"
         static let showInDock = "showInDock"
         static let appIcon = "appIcon"
@@ -40,6 +45,8 @@ public final class JumpSettings {
         self.showInDock = defaults.object(forKey: Key.showInDock) as? Bool ?? false
         self.appIcon = defaults.string(forKey: Key.appIcon).flatMap(AppIconChoice.init(rawValue:)) ?? .official
         self.recognizesScreenText = defaults.object(forKey: Key.recognizeScreenText) as? Bool ?? false
+        self.scrollSpeed = defaults.string(forKey: Key.scrollSpeed).flatMap(ScrollSpeed.init(rawValue:)) ?? .normal
+        self.showsScrollOutline = defaults.object(forKey: Key.scrollOutline) as? Bool ?? true
     }
 
     /// Stores the characters used for labels, lowercased, without duplicates or
@@ -71,6 +78,21 @@ public final class JumpSettings {
         defaults.set(glass.rawValue, forKey: Key.hintGlass)
     }
 
+    public func setHintLabelCase(_ labelCase: HintLabelCase) {
+        hintAppearance.labelCase = labelCase
+        defaults.set(labelCase.rawValue, forKey: Key.hintLabelCase)
+    }
+
+    public func setScrollSpeed(_ speed: ScrollSpeed) {
+        scrollSpeed = speed
+        defaults.set(speed.rawValue, forKey: Key.scrollSpeed)
+    }
+
+    public func setShowsScrollOutline(_ shows: Bool) {
+        showsScrollOutline = shows
+        defaults.set(shows, forKey: Key.scrollOutline)
+    }
+
     public func setMenuBarIcon(_ icon: MenuBarIcon) {
         menuBarIcon = icon
         defaults.set(icon.rawValue, forKey: Key.menuBarIcon)
@@ -98,7 +120,9 @@ public final class JumpSettings {
         let size = (defaults.object(forKey: Key.hintSize) as? Double).map { CGFloat($0).rounded() }
             .flatMap { HintAppearance.sizeRange.contains($0) ? $0 : nil }
         let glass = defaults.string(forKey: Key.hintGlass).flatMap(HintGlass.init(rawValue:))
-        return HintAppearance(theme: theme ?? standard.theme, size: size ?? standard.size, glass: glass ?? standard.glass)
+        let labelCase = defaults.string(forKey: Key.hintLabelCase).flatMap(HintLabelCase.init(rawValue:))
+        return HintAppearance(theme: theme ?? standard.theme, size: size ?? standard.size, glass: glass ?? standard.glass,
+                              labelCase: labelCase ?? standard.labelCase)
     }
 
     static func normalized(_ input: String) -> String? {

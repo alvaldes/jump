@@ -116,17 +116,33 @@ public nonisolated enum HintGlass: String, CaseIterable, Sendable {
     }
 }
 
-/// How hint labels look: theme, label size and the Liquid Glass option.
+/// Whether labels are drawn in upper or lower case. Only the drawing changes:
+/// typing matches either way.
+public nonisolated enum HintLabelCase: String, CaseIterable, Sendable {
+    case upper, lower
+
+    public var title: String {
+        switch self {
+        case .upper: "ABC"
+        case .lower: "abc"
+        }
+    }
+}
+
+/// How hint labels look: theme, label size, the Liquid Glass option and the
+/// letter case.
 public nonisolated struct HintAppearance: Equatable, Sendable {
     public var theme: HintTheme
     /// Label font size in points; pills scale with it.
     public var size: CGFloat
     public var glass: HintGlass
+    public var labelCase: HintLabelCase
 
-    public init(theme: HintTheme, size: CGFloat, glass: HintGlass) {
+    public init(theme: HintTheme, size: CGFloat, glass: HintGlass, labelCase: HintLabelCase = .upper) {
         self.theme = theme
         self.size = size
         self.glass = glass
+        self.labelCase = labelCase
     }
 
     public static let standard = HintAppearance(theme: .dark, size: 11, glass: .off)

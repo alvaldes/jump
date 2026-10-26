@@ -27,7 +27,8 @@ struct JumpApp: App {
         let permission = AccessibilityPermission()
         let settings = JumpSettings()
         // One overlay for every mode: they never show at the same time.
-        let overlay = HintOverlay(hintAppearance: { settings.hintAppearance })
+        let overlay = HintOverlay(hintAppearance: { settings.hintAppearance },
+                                  showsScrollOutline: { settings.showsScrollOutline })
         let services = AppServices(permission: permission, overlay: overlay)
         let webAccessibility = services.webAccessibility
         let settingsOpener = SettingsOpener()
@@ -47,7 +48,7 @@ struct JumpApp: App {
             overlay: overlay,
             pointer: SystemPointer(),
             input: AppKitModeInput(overlay: overlay, openSettings: { settingsOpener.open() }),
-            driver: Scroller<AXScrollControl>(),
+            driver: Scroller<AXScrollControl>(speed: { settings.scrollSpeed }),
             isTrusted: { permission.isTrusted },
             frontmostApp: FrontmostApp.current,
             screens: ScreenGeometry.screenFramesInAXCoordinates,

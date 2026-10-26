@@ -11,7 +11,7 @@ struct BehaviorSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PaneHeader(title: "Behavior", subtitle: "How hints are labeled and how text search reads the screen.")
+            PaneHeader(title: "Behavior", subtitle: "How hints are labeled, how scrolling feels and how text search reads the screen.")
 
             SettingsCard(title: "Hint labels", symbol: "character.textbox",
                          subtitle: "Labels are built from these letters, first ones first.") {
@@ -33,6 +33,30 @@ struct BehaviorSettings: View {
                 }
                 if charactersRejected {
                     Text("Use at least two different letters.").font(.caption).foregroundStyle(.red)
+                }
+            }
+
+            SettingsCard(title: "Scroll", symbol: "arrow.up.and.down") {
+                SettingRow(title: "Speed", detail: "While a direction key is held.") {
+                    Picker("", selection: Binding(
+                        get: { settings.scrollSpeed },
+                        set: { settings.setScrollSpeed($0) }
+                    )) {
+                        ForEach(ScrollSpeed.allCases, id: \.self) { speed in
+                            Text(speed.title).tag(speed)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                }
+                SettingRow(title: "Outline the scroll area", detail: "Shows which area scrolls; Tab moves to the next one.") {
+                    Toggle("", isOn: Binding(
+                        get: { settings.showsScrollOutline },
+                        set: { settings.setShowsScrollOutline($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
                 }
             }
 

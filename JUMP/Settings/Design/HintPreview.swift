@@ -57,7 +57,7 @@ struct HintPreview: View {
     @ViewBuilder
     private func pill(_ label: String) -> some View {
         let palette = appearance.theme.palette(isDark: scheme == .dark, accent: .controlAccentColor)
-        let text = Text(label)
+        let text = Text(appearance.labelCase == .lower ? label.lowercased() : label)
             .font(.system(size: appearance.size, weight: .semibold, design: .monospaced))
             .kerning(0.6 * appearance.size / 11)
             .foregroundStyle(Color(nsColor: palette.text))

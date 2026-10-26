@@ -168,6 +168,9 @@
     }
     .steps p { margin: 0; }
     .steps .note { color: var(--shade); font-size: 0.9375rem; margin-top: 0.2rem; }
+    .steps img { display: block; max-width: 100%; height: auto; margin-top: 0.9rem; filter: drop-shadow(0 18px 24px rgba(20, 24, 30, 0.35)); }
+    .steps img.dialog { width: 262px; }
+    .steps img.pane { width: 480px; border-radius: 12px; }
 
     footer { border-top: 1px solid var(--line); padding: 2rem 0 3rem; color: var(--shade); font-size: 0.9375rem; display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; justify-content: space-between; }
     footer p { margin: 0; }
@@ -315,10 +318,24 @@
       </section>
 
       <section aria-labelledby="install-title">
-        <h2 id="install-title">Install in a minute.</h2>
+        <h2 id="install-title">Install in a few minutes.</h2>
         <ol class="steps">
-          <li><div><p>Download <a href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">JUMP.dmg</a> and drag JUMP to Applications.</p></div></li>
-          <li><div><p>Open JUMP. The first time, macOS asks you to confirm it.</p><p class="note">JUMP isn't notarized yet. Go to System Settings, Privacy &amp; Security, and choose Open Anyway.</p></div></li>
+          <li><div><p>Download <a href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">JUMP.dmg</a>, open it and drag JUMP to Applications.</p></div></li>
+          <li><div>
+            <p>Open JUMP from Applications. macOS stops it the first time: choose <strong>Done</strong>, not Move to Trash.</p>
+            <p class="note">JUMP isn't notarized by Apple yet, so macOS can't check it on its own. You confirm it once.</p>
+            <img class="dialog" src="assets/install/blocked.webp" width="524" height="572" alt="macOS dialog: “JUMP.app” Not Opened, with Move to Trash and Done buttons">
+          </div></li>
+          <li><div>
+            <p>Open System Settings, go to Privacy &amp; Security, scroll down to Security and click <strong>Open Anyway</strong> next to “JUMP.app” was blocked.</p>
+            <p class="note">The button shows up for about an hour after you try to open JUMP. If it isn't there, open JUMP again first. macOS may ask for your password.</p>
+            <img class="pane" src="assets/install/settings.webp" width="960" height="340" alt="Privacy &amp; Security settings: “JUMP.app” was blocked to protect your Mac, with an Open Anyway button">
+          </div></li>
+          <li><div>
+            <p>In the dialog that follows, choose <strong>Open Anyway</strong>.</p>
+            <p class="note">macOS remembers it, so JUMP opens normally from now on. A new version may ask again.</p>
+            <img class="dialog" src="assets/install/confirm.webp" width="524" height="702" alt="macOS dialog: Open “JUMP.app”?, with Move to Trash, Open Anyway and Done buttons">
+          </div></li>
           <li><div><p>Allow JUMP in Accessibility when it asks.</p><p class="note">That's how JUMP finds and clicks elements in other apps.</p></div></li>
           <li><div><p>Press <span class="keys"><kbd class="key">⌘</kbd><kbd class="key">⇧</kbd><kbd class="key">Space</kbd></span> in any window.</p></div></li>
         </ol>

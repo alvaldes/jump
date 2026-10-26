@@ -6,6 +6,26 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 > Status: v1.1.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
 
+## Install
+
+JUMP needs macOS 26 or later.
+
+1. Download [JUMP.dmg](https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg), open it and drag JUMP to Applications.
+2. Open JUMP from Applications. JUMP isn't notarized by Apple yet, so macOS stops it the first time: choose **Done**, not Move to Trash.
+
+   <img src="docs/assets/install/blocked.webp" width="262" alt="macOS dialog: “JUMP.app” Not Opened, with Move to Trash and Done buttons">
+
+3. Open System Settings → Privacy & Security, scroll down to **Security** and click **Open Anyway** next to “JUMP.app” was blocked. The button shows up for about an hour after you try to open JUMP; if it isn't there, open JUMP again first. macOS may ask for your password.
+
+   <img src="docs/assets/install/settings.webp" width="480" alt="Privacy & Security settings: “JUMP.app” was blocked to protect your Mac, with an Open Anyway button">
+
+4. In the dialog that follows, choose **Open Anyway**. macOS remembers it, so JUMP opens normally from now on; a new version may ask again.
+
+   <img src="docs/assets/install/confirm.webp" width="262" alt="macOS dialog: Open “JUMP.app”?, with Move to Trash, Open Anyway and Done buttons">
+
+5. Allow JUMP in **Accessibility** when it asks (System Settings → Privacy & Security → Accessibility).
+6. Press ⌘⇧Space in any window.
+
 ## Features
 
 | Shortcut | Mode | What it does |
@@ -72,7 +92,7 @@ To keep it, sign with your own (free) Apple Development certificate:
 2. `scripts/release.sh` builds the signed Release app and writes `dist/JUMP.dmg` (a fixed name, so the website's download link always gets the latest release). It refuses uncommitted changes, an untagged commit, and an ad-hoc signature (users would lose the Accessibility permission on every update).
 3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed.
 
-Until JUMP is notarized, macOS asks people to confirm the first launch (System Settings → Privacy & Security → Open Anyway).
+Until JUMP is notarized, macOS asks people to confirm the first launch; [Install](#install) walks through it.
 
 ## Project layout
 

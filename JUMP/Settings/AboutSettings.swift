@@ -1,27 +1,23 @@
 import AppKit
 import SwiftUI
 
+/// Sized to fit the window without scrolling: it is the first pane people see.
 struct AboutSettings: View {
-    @Environment(\.colorScheme) private var scheme
-
     var body: some View {
         VStack(spacing: 18) {
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
+                // The icon's own shadow is the glow; a backdrop behind the block
+                // showed as a box of a different color.
                 Image(nsImage: NSApp?.applicationIconImage ?? NSImage())
                     .resizable()
-                    .frame(width: 128, height: 128)
-                    .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
-                Text("JUMP").font(.system(size: 34, weight: .bold, design: .rounded))
+                    .frame(width: 104, height: 104)
+                    .shadow(color: .black.opacity(0.35), radius: 16, y: 7)
+                Text("JUMP").font(.system(size: 30, weight: .bold, design: .rounded))
                 Text("Keyboard-driven screen navigation for macOS.").foregroundStyle(.secondary)
                 Keycap(label: "v\(AppVersion.short)", minWidth: 60)
-                    .padding(.top, 4)
+                    .padding(.top, 2)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-            .background(
-                RadialGradient(colors: [Brand.graphite.opacity(scheme == .dark ? 0.6 : 0.18), .clear],
-                               center: .top, startRadius: 10, endRadius: 320)
-            )
 
             SettingsCard(title: "Credits", symbol: "heart") {
                 LinkRow(title: "License", label: "GPL-3.0", url: "https://www.gnu.org/licenses/gpl-3.0.html")

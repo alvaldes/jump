@@ -125,6 +125,8 @@ struct SettingsSidebar: View {
                     }
                 }
                 .buttonStyle(.plain)
+                // The keycap face already marks the selection; the focus ring clashed with it.
+                .focusEffectDisabled()
                 .accessibilityAddTraits(selection == area ? .isSelected : [])
             }
             Spacer()

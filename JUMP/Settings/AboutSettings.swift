@@ -20,6 +20,8 @@ struct AboutSettings: View {
             .frame(maxWidth: .infinity)
 
             SettingsCard(title: "Credits", symbol: "heart") {
+                LinkRow(title: "Created by", label: "@alvaldes", url: "https://alvaldes.vercel.app")
+                Divider()
                 LinkRow(title: "License", label: "GPL-3.0", url: "https://www.gnu.org/licenses/gpl-3.0.html")
                 Divider()
                 LinkRow(title: "Based on", label: "Vimac by Dexter Leng and contributors", url: "https://github.com/nchudleigh/vimac")

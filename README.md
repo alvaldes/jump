@@ -27,7 +27,7 @@ All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves i
 
 | Appearance | Behavior |
 |---|---|
-| ![Appearance settings: label preview, themes, size and Liquid Glass](docs/assets/screenshots/settings-appearance.webp) | ![Behavior settings: label letters, scroll speed, scroll outline and text recognition](docs/assets/screenshots/settings-behavior.webp) |
+| ![Appearance settings: label preview, themes, size and Liquid Glass](docs/assets/screenshots/settings-appearance.webp) | ![Behavior settings: label letters, click modifiers, scroll speed and scroll outline](docs/assets/screenshots/settings-behavior.webp) |
 | **General** | **Permissions** |
 | ![General settings: launch at login, menu bar icon and Dock icon](docs/assets/screenshots/settings-general.webp) | ![Permissions settings: Accessibility and Screen Recording](docs/assets/screenshots/settings-permissions.webp) |
 

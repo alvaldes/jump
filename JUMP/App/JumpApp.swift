@@ -14,6 +14,7 @@ struct JumpApp: App {
     @State private var searchMode: LiveTextSearchMode
     @State private var launchAtLogin = LaunchAtLogin()
     @State private var screenRecording = ScreenRecordingPermission()
+    @State private var hintShortcut = HintShortcut()
     private let recognizer: ScreenTextRecognizer
     private let services: AppServices
     private let switcher: ModeSwitcher<AXNode, Scroller<AXScrollControl>>
@@ -98,7 +99,8 @@ struct JumpApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode, settingsOpener: settingsOpener)
+            MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode, settingsOpener: settingsOpener,
+                        hintShortcut: hintShortcut)
         } label: {
             MenuBarLabel(imageName: settings.menuBarIcon.imageName, opener: settingsOpener)
         }

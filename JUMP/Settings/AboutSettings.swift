@@ -13,11 +13,8 @@ struct AboutSettings: View {
                     .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
                 Text("JUMP").font(.system(size: 34, weight: .bold, design: .rounded))
                 Text("Keyboard-driven screen navigation for macOS.").foregroundStyle(.secondary)
-                HStack(spacing: 4) {
-                    Keycap(label: "v\(AppVersion.short)", minWidth: 60)
-                    Keycap(label: "build \(AppVersion.build)", minWidth: 60)
-                }
-                .padding(.top, 4)
+                Keycap(label: "v\(AppVersion.short)", minWidth: 60)
+                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)

@@ -151,5 +151,4 @@ private struct WindowTitle: NSViewRepresentable {
 
 enum AppVersion {
     static let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-    static let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
 }

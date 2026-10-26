@@ -4,7 +4,7 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 [Website and download](https://alvaldes.github.io/jump/)
 
-> Status: v1.0.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
+> Status: v1.1.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
 
 ## Features
 

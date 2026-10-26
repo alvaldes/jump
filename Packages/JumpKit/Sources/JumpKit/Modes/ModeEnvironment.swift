@@ -209,6 +209,8 @@ public final class AppKitModeInput: ModeInputSource {
     private let keyEvents: KeyEventMonitor
     private let workspaceCenter: NotificationCenter
     private let windowCenter: NotificationCenter
+    /// ⌘, inside a mode: JUMP's own Settings shortcut.
+    private let openSettings: () -> Void
     private var keyMonitor: Any?
     private var appSwitchObserver: (any NSObjectProtocol)?
     private var keyLossObserver: (any NSObjectProtocol)?
@@ -218,30 +220,43 @@ public final class AppKitModeInput: ModeInputSource {
     /// kVK_ANSI_Grave.
     private static let graveKeyCode: UInt16 = 50
 
+    /// ⌘, with no other modifier, by character so it follows the keyboard layout.
+    private static func isSettingsShortcut(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
+            && event.charactersIgnoringModifiers == ","
+    }
+
     public init(
         overlay: OverlayKeyboard,
         windowFocus: WindowFocusObserving = AXWindowFocusObserver(),
         keyMonitor: KeyEventMonitor = .local,
         workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        windowCenter: NotificationCenter = .default
+        windowCenter: NotificationCenter = .default,
+        openSettings: @escaping () -> Void = {}
     ) {
         self.overlay = overlay
         self.windowFocus = windowFocus
         self.keyEvents = keyMonitor
         self.workspaceCenter = workspaceCenter
         self.windowCenter = windowCenter
+        self.openSettings = openSettings
     }
 
     public func start(_ handler: ModeInputHandler, target: FrontmostApp) {
         stop()
         session += 1
         let thisSession = session
+        let openSettings = openSettings
         keyMonitor = keyEvents.add { event in
             // ⌘` would cycle the target app's windows, but the overlay holds
             // the keyboard, so it counts as leaving the target window.
             if event.type == .keyDown, event.keyCode == Self.graveKeyCode,
                event.modifierFlags.contains(.command) {
                 handler.focusLeft()
+            } else if event.type == .keyDown, Self.isSettingsShortcut(event) {
+                // Ends the mode the same way leaving the window does.
+                handler.focusLeft()
+                openSettings()
             } else if event.type == .keyDown {
                 handler.keyDown(KeyPress(event))
             } else {

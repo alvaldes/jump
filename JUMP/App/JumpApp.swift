@@ -17,6 +17,7 @@ struct JumpApp: App {
     private let recognizer: ScreenTextRecognizer
     private let services: AppServices
     private let switcher: ModeSwitcher<AXNode, Scroller<AXScrollControl>>
+    private let settingsOpener: SettingsOpener
 
     init() {
         #if DEBUG
@@ -28,10 +29,11 @@ struct JumpApp: App {
         let overlay = HintOverlay(hintAppearance: { settings.hintAppearance })
         let services = AppServices(permission: permission, overlay: overlay)
         let webAccessibility = services.webAccessibility
+        let settingsOpener = SettingsOpener()
 
         let hintMode = LiveHintMode(
             overlay: overlay,
-            input: AppKitModeInput(overlay: overlay),
+            input: AppKitModeInput(overlay: overlay, openSettings: { settingsOpener.open() }),
             isTrusted: { permission.isTrusted },
             hintCharacters: { settings.hintCharacters },
             frontmostApp: FrontmostApp.current,
@@ -43,7 +45,7 @@ struct JumpApp: App {
         let scrollMode = LiveScrollMode(
             overlay: overlay,
             pointer: SystemPointer(),
-            input: AppKitModeInput(overlay: overlay),
+            input: AppKitModeInput(overlay: overlay, openSettings: { settingsOpener.open() }),
             driver: Scroller<AXScrollControl>(),
             isTrusted: { permission.isTrusted },
             frontmostApp: FrontmostApp.current,
@@ -53,7 +55,7 @@ struct JumpApp: App {
         let recognizer = ScreenTextRecognizer()
         let searchMode = LiveTextSearchMode(
             overlay: overlay,
-            input: AppKitModeInput(overlay: overlay),
+            input: AppKitModeInput(overlay: overlay, openSettings: { settingsOpener.open() }),
             isTrusted: { permission.isTrusted },
             frontmostApp: FrontmostApp.current,
             prepareApp: { app in await webAccessibility.enable(pid: app.pid, bundleIdentifier: app.bundleIdentifier) },
@@ -77,6 +79,7 @@ struct JumpApp: App {
         self.services = services
         self.recognizer = recognizer
         self.switcher = switcher
+        self.settingsOpener = settingsOpener
 
         // NSApp exists once the app finishes starting.
         DispatchQueue.main.async { DockPresence.apply(settings) }
@@ -97,8 +100,7 @@ struct JumpApp: App {
         MenuBarExtra {
             MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode)
         } label: {
-            Image(settings.menuBarIcon.imageName)
-                .accessibilityLabel("JUMP")
+            MenuBarLabel(imageName: settings.menuBarIcon.imageName, opener: settingsOpener)
         }
 
         Window("Welcome to JUMP", id: OnboardingView.windowID) {

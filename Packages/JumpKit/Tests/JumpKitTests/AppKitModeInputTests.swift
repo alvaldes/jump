@@ -85,9 +85,9 @@ struct AppKitModeInputTests {
     let windows = NotificationCenter()
     let events = InputEvents()
 
-    private func makeInput() -> AppKitModeInput {
+    private func makeInput(openSettings: @escaping () -> Void = {}) -> AppKitModeInput {
         AppKitModeInput(overlay: overlay, windowFocus: focus, keyMonitor: keys.monitor,
-                        workspaceCenter: workspace, windowCenter: windows)
+                        workspaceCenter: workspace, windowCenter: windows, openSettings: openSettings)
     }
 
     /// Lets the deferred key-loss check run.
@@ -127,6 +127,25 @@ struct AppKitModeInputTests {
         input.start(events.handler, target: fakeApp)
         #expect(keys.send(.keyDown, keyCode: 50, characters: "`") == nil)
         #expect(events.log == ["down `"])
+    }
+
+    @Test func commandCommaEndsTheModeAndOpensSettings() {
+        var opened = 0
+        let input = makeInput(openSettings: { opened += 1 })
+        input.start(events.handler, target: fakeApp)
+        #expect(keys.send(.keyDown, keyCode: 43, characters: ",", modifiers: .command) == nil)
+        #expect(events.log == ["focus left"])
+        #expect(opened == 1)
+    }
+
+    @Test func commaWithoutCommandStillReachesTheMode() {
+        var opened = 0
+        let input = makeInput(openSettings: { opened += 1 })
+        input.start(events.handler, target: fakeApp)
+        #expect(keys.send(.keyDown, keyCode: 43, characters: ",") == nil)
+        #expect(keys.send(.keyDown, keyCode: 43, characters: ",", modifiers: [.command, .shift]) == nil)
+        #expect(events.log == ["down ,", "down ,"])
+        #expect(opened == 0)
     }
 
     // MARK: Focus leaving the target window

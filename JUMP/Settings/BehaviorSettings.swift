@@ -11,7 +11,7 @@ struct BehaviorSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PaneHeader(title: "Behavior", subtitle: "How hints are labeled, how scrolling feels and how text search reads the screen.")
+            PaneHeader(title: "Behavior", subtitle: "How hints are labeled and clicked, how scrolling feels and how text search reads the screen.")
 
             SettingsCard(title: "Hint labels", symbol: "character.textbox",
                          subtitle: "Labels are built from these letters, first ones first.") {
@@ -34,6 +34,13 @@ struct BehaviorSettings: View {
                 if charactersRejected {
                     Text("Use at least two different letters.").font(.caption).foregroundStyle(.red)
                 }
+            }
+
+            SettingsCard(title: "Click actions", symbol: "cursorarrow.click",
+                         subtitle: "Hold a modifier while typing a label, or pressing Return in text search.") {
+                ActionModifierRow(settings: settings, action: .rightClick, title: "Right-click")
+                ActionModifierRow(settings: settings, action: .doubleClick, title: "Double-click")
+                ActionModifierRow(settings: settings, action: .moveCursor, title: "Move the pointer only")
             }
 
             SettingsCard(title: "Scroll", symbol: "arrow.up.and.down") {
@@ -102,5 +109,28 @@ struct BehaviorSettings: View {
     private func applyCharacters() {
         charactersRejected = !settings.setHintCharacters(characters)
         characters = settings.hintCharacters
+    }
+}
+
+/// Picks the modifier for one click action; choosing one in use swaps the two.
+private struct ActionModifierRow: View {
+    let settings: JumpSettings
+    let action: HintAction
+    let title: String
+
+    var body: some View {
+        SettingRow(title: title) {
+            Picker(title, selection: Binding(
+                get: { settings.actionModifiers.modifier(for: action) ?? .shift },
+                set: { settings.setActionModifier($0, for: action) }
+            )) {
+                ForEach(ActionModifier.allCases, id: \.self) { modifier in
+                    Text(modifier.symbol).tag(modifier)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+        }
     }
 }

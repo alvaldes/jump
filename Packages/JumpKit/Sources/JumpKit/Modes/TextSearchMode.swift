@@ -31,6 +31,7 @@ public final class TextSearchMode<Node: Sendable> {
     @ObservationIgnored private let locateLimit: Int
     /// The OCR fallback; `nil` searches Accessibility text only.
     @ObservationIgnored private let screenText: ScreenTextSource?
+    @ObservationIgnored private let actionModifiers: () -> ActionModifiers
     /// Returns when a search stops waiting for OCR and answers with
     /// Accessibility only.
     @ObservationIgnored private let recognitionDeadline: @Sendable () async -> Void
@@ -84,6 +85,7 @@ public final class TextSearchMode<Node: Sendable> {
         perform: @escaping Performer,
         locateLimit: Int = 100,
         screenText: ScreenTextSource? = nil,
+        actionModifiers: @escaping () -> ActionModifiers = { .standard },
         recognitionDeadline: @escaping @Sendable () async -> Void = { try? await Task.sleep(for: .seconds(2)) }
     ) {
         self.recognitionDeadline = recognitionDeadline
@@ -98,6 +100,7 @@ public final class TextSearchMode<Node: Sendable> {
         self.perform = perform
         self.locateLimit = locateLimit
         self.screenText = screenText
+        self.actionModifiers = actionModifiers
     }
 
     /// Bound to the search hotkey.
@@ -270,7 +273,7 @@ public final class TextSearchMode<Node: Sendable> {
     }
 
     private func handleKeyDown(_ press: KeyPress) {
-        switch keys.handle(press) {
+        switch keys.handle(press, modifiers: actionModifiers()) {
         case .edited:
             pendingJump = nil
             if runs == nil {

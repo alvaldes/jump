@@ -45,22 +45,3 @@ struct HintInputTests {
         #expect(input.handle(.space) == .rotate)
     }
 }
-
-@Suite("HintAction")
-struct HintActionTests {
-    @Test func noModifierPerformsThePrimaryAction() {
-        #expect(HintAction(shift: false, command: false, option: false) == .press)
-    }
-
-    @Test func shiftRightClicks() {
-        #expect(HintAction(shift: true, command: false, option: false) == .rightClick)
-    }
-
-    @Test func commandDoubleClicks() {
-        #expect(HintAction(shift: false, command: true, option: false) == .doubleClick)
-    }
-
-    @Test func optionOnlyMovesTheCursor() {
-        #expect(HintAction(shift: false, command: false, option: true) == .moveCursor)
-    }
-}

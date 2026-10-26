@@ -15,13 +15,13 @@ public struct SearchInput: Sendable {
 
     public init() {}
 
-    public mutating func handle(_ press: KeyPress) -> SearchCommand {
+    public mutating func handle(_ press: KeyPress, modifiers: ActionModifiers = .standard) -> SearchCommand {
         switch press.keyCode {
         case KeyPress.KeyCode.escape:
             return .cancel
         case KeyPress.KeyCode.returnKey, KeyPress.KeyCode.keypadEnter:
-            // Same modifiers as hints: Shift right-clicks, ⌘ double-clicks, ⌥ moves the pointer.
-            return .jump(HintAction(shift: press.shift, command: press.command, option: press.option))
+            // Same modifiers as hints.
+            return .jump(modifiers.action(for: press))
         case KeyPress.KeyCode.tab:
             return press.shift ? .previous : .next
         case KeyPress.KeyCode.delete:

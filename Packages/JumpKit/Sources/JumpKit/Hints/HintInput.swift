@@ -53,14 +53,72 @@ public struct HintInput: Sendable {
     }
 }
 
-/// What to do with the selected element, chosen by the modifier held while typing.
+/// What to do with the selected element, chosen by the modifier held while typing
+/// (see `ActionModifiers`).
 public enum HintAction: Sendable, Equatable {
     case press
     case rightClick
     case doubleClick
     case moveCursor
+}
 
-    public init(shift: Bool, command: Bool, option: Bool) {
-        self = if shift { .rightClick } else if command { .doubleClick } else if option { .moveCursor } else { .press }
+/// A modifier that can choose a `HintAction`.
+public enum ActionModifier: String, CaseIterable, Sendable {
+    case shift
+    case control
+    case option
+    case command
+
+    public var symbol: String {
+        switch self {
+        case .shift: "⇧"
+        case .control: "⌃"
+        case .option: "⌥"
+        case .command: "⌘"
+        }
+    }
+
+    func isHeld(in press: KeyPress) -> Bool {
+        switch self {
+        case .shift: press.shift
+        case .control: press.control
+        case .option: press.option
+        case .command: press.command
+        }
+    }
+}
+
+/// Which modifier chooses each action other than a plain press. Every action
+/// has its own modifier; one left over does nothing.
+public struct ActionModifiers: Equatable, Sendable {
+    /// In order of precedence when several modifiers are held.
+    public static let actions: [HintAction] = [.rightClick, .doubleClick, .moveCursor]
+    public static let standard = ActionModifiers(rightClick: .shift, doubleClick: .command, moveCursor: .option)!
+
+    private var modifiers: [ActionModifier]
+
+    /// `nil` when two actions share a modifier.
+    public init?(rightClick: ActionModifier, doubleClick: ActionModifier, moveCursor: ActionModifier) {
+        let modifiers = [rightClick, doubleClick, moveCursor]
+        guard Set(modifiers).count == modifiers.count else { return nil }
+        self.modifiers = modifiers
+    }
+
+    /// `nil` for `.press`, which needs no modifier.
+    public func modifier(for action: HintAction) -> ActionModifier? {
+        Self.actions.firstIndex(of: action).map { modifiers[$0] }
+    }
+
+    /// Gives `modifier` to `action`; the action that had it takes `action`'s old one.
+    public mutating func assign(_ modifier: ActionModifier, to action: HintAction) {
+        guard let index = Self.actions.firstIndex(of: action) else { return }
+        if let holder = modifiers.firstIndex(of: modifier) {
+            modifiers[holder] = modifiers[index]
+        }
+        modifiers[index] = modifier
+    }
+
+    public func action(for press: KeyPress) -> HintAction {
+        zip(Self.actions, modifiers).first { $0.1.isHeld(in: press) }?.0 ?? .press
     }
 }

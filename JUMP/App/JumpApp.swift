@@ -38,6 +38,7 @@ struct JumpApp: App {
             input: AppKitModeInput(overlay: overlay, openSettings: { settingsOpener.open() }),
             isTrusted: { permission.isTrusted },
             hintCharacters: { settings.hintCharacters },
+            actionModifiers: { settings.actionModifiers },
             frontmostApp: FrontmostApp.current,
             // Usually already done on activation; covers apps that were in front before JUMP started.
             prepareApp: { app in await webAccessibility.enable(pid: app.pid, bundleIdentifier: app.bundleIdentifier) },
@@ -70,7 +71,8 @@ struct JumpApp: App {
                 isEnabled: { settings.recognizesScreenText && ScreenTextRecognizer.hasScreenRecordingAccess },
                 recognize: { app, frame in try await recognizer.recognize(pid: app.pid, windowFrame: frame) },
                 perform: { action, match in await ScreenTextRecognizer.jump(action, to: match) }
-            )
+            ),
+            actionModifiers: { settings.actionModifiers }
         )
         let switcher = ModeSwitcher(hints: hintMode, scroll: scrollMode, search: searchMode)
 

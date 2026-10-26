@@ -16,7 +16,7 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves it and opens Settings. Apps listed under Excluded apps (Settings, Shortcuts) keep those keys: JUMP's shortcuts stay off while one of them is in front.
 
-- **Actions with modifiers.** Holding a modifier while typing a label (or pressing `Return` in text search) chooses the action: none clicks (or places the caret in a text field), `Shift` right-clicks, `⌘` double-clicks, `⌥` only moves the pointer. Clicks wait until the modifier is released, so apps never see it.
+- **Actions with modifiers.** Holding a modifier while typing a label (or pressing `Return` in text search) chooses the action: none clicks (or places the caret in a text field), `Shift` right-clicks, `⌘` double-clicks, `⌥` only moves the pointer. Each action's modifier (`Shift`, `⌃`, `⌥` or `⌘`) can be changed in Settings, Behavior. Clicks wait until the modifier is released, so apps never see it.
 - **Text search** reads text through Accessibility. Matching ignores case and accents, and only counts what is on screen.
 - **OCR fallback (optional).** For windows without usable Accessibility text (terminals, PDFs, images), JUMP can recognize text on screen. It is off by default and needs the Screen Recording permission, requested only when you turn it on. Captures never leave memory.
 - **Appearance.** Five hint themes (Dark, Light, System, Accent, Classic) with readable contrast, label size from 7 to 20 pt, upper or lower case labels, and Liquid Glass (Off, Regular, Clear). Scroll speed (Slow, Normal, Fast) and the scroll area outline can be changed in Behavior.

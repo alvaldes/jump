@@ -19,6 +19,7 @@ public final class HintMode<Node: AccessibilityNode> {
     @ObservationIgnored private let input: ModeInputSource
     @ObservationIgnored private let isTrusted: () -> Bool
     @ObservationIgnored private let hintCharacters: () -> String
+    @ObservationIgnored private let actionModifiers: () -> ActionModifiers
     @ObservationIgnored private let frontmostApp: () -> FrontmostApp?
     @ObservationIgnored private let prepareApp: (FrontmostApp) async -> Void
     @ObservationIgnored private let scan: Scanner
@@ -38,6 +39,7 @@ public final class HintMode<Node: AccessibilityNode> {
         input: ModeInputSource,
         isTrusted: @escaping () -> Bool,
         hintCharacters: @escaping () -> String,
+        actionModifiers: @escaping () -> ActionModifiers = { .standard },
         frontmostApp: @escaping () -> FrontmostApp?,
         prepareApp: @escaping (FrontmostApp) async -> Void = { _ in },
         scan: @escaping Scanner,
@@ -47,6 +49,7 @@ public final class HintMode<Node: AccessibilityNode> {
         self.input = input
         self.isTrusted = isTrusted
         self.hintCharacters = hintCharacters
+        self.actionModifiers = actionModifiers
         self.frontmostApp = frontmostApp
         self.prepareApp = prepareApp
         self.scan = scan
@@ -149,7 +152,7 @@ public final class HintMode<Node: AccessibilityNode> {
             overlay.filter(typed: typed)
         case .matched(let label):
             guard let hint = hints.first(where: { $0.label == label }) else { return dismiss() }
-            let action = HintAction(shift: press.shift, command: press.command, option: press.option)
+            let action = actionModifiers().action(for: press)
             // Hide first so focus returns to the target app before it receives the action.
             dismiss()
             logger.info("Selected \(label, privacy: .public): \(String(describing: action), privacy: .public) on \(hint.element.role, privacy: .public)")

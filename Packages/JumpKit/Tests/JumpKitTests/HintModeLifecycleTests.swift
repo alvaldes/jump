@@ -42,11 +42,13 @@ struct HintModeLifecycleTests {
         prepareApp: @escaping (FrontmostApp) async -> Void = { _ in },
         scan: @escaping HintMode<ModeNode>.Scanner = { _ in
             ScanResult(elements: elements, visitedCount: 3, isTruncated: false)
-        }
+        },
+        actionModifiers: ActionModifiers = .standard
     ) -> HintMode<ModeNode> {
         let actions = self.actions
         return HintMode(
             overlay: overlay, input: input, isTrusted: { trusted }, hintCharacters: { "sa" },
+            actionModifiers: { actionModifiers },
             frontmostApp: { frontmost }, prepareApp: prepareApp, scan: scan,
             perform: { action, element in actions.record(action, element) }
         )
@@ -168,6 +170,15 @@ struct HintModeLifecycleTests {
         await show(mode)
         input.type("a", shift: modifier == "shift", command: modifier == "command", option: modifier == "option")
         #expect(await performed(mode) == [expected])
+    }
+
+    @Test func aCustomModifierChoosesTheAction() async {
+        var modifiers = ActionModifiers.standard
+        modifiers.assign(.control, to: .doubleClick)
+        let mode = makeMode(actionModifiers: modifiers)
+        await show(mode)
+        input.type("a", control: true)
+        #expect(await performed(mode) == ["doubleClick save"])
     }
 
     @Test func spaceRotatesOverlappingHints() async {

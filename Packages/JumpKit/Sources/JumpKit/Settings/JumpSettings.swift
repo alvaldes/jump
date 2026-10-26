@@ -18,6 +18,8 @@ public final class JumpSettings {
     public private(set) var recognizesScreenText: Bool
     /// Bundle identifiers of the apps where JUMP's shortcuts stay off, in the order they were added.
     public private(set) var excludedApps: [String]
+    /// Which modifier, held while typing a label, chooses each click action.
+    public private(set) var actionModifiers: ActionModifiers
 
     private let defaults: UserDefaults
 
@@ -34,6 +36,9 @@ public final class JumpSettings {
         static let appIcon = "appIcon"
         static let recognizeScreenText = "recognizeScreenText"
         static let excludedApps = "excludedApps"
+        static let rightClickModifier = "rightClickModifier"
+        static let doubleClickModifier = "doubleClickModifier"
+        static let moveCursorModifier = "moveCursorModifier"
     }
 
     /// Labels need at least two characters to tell elements apart.
@@ -51,6 +56,7 @@ public final class JumpSettings {
         self.scrollSpeed = defaults.string(forKey: Key.scrollSpeed).flatMap(ScrollSpeed.init(rawValue:)) ?? .normal
         self.showsScrollOutline = defaults.object(forKey: Key.scrollOutline) as? Bool ?? true
         self.excludedApps = defaults.object(forKey: Key.excludedApps) as? [String] ?? []
+        self.actionModifiers = Self.storedActionModifiers(in: defaults)
     }
 
     /// Stores the characters used for labels, lowercased, without duplicates or
@@ -132,6 +138,26 @@ public final class JumpSettings {
     /// Apps without a bundle identifier cannot be listed, so they are never excluded.
     public func isExcluded(bundleIdentifier: String?) -> Bool {
         bundleIdentifier.map(excludedApps.contains) ?? false
+    }
+
+    /// The action that used `modifier` takes this action's old one.
+    public func setActionModifier(_ modifier: ActionModifier, for action: HintAction) {
+        actionModifiers.assign(modifier, to: action)
+        for (action, key) in Self.actionModifierKeys {
+            defaults.set(actionModifiers.modifier(for: action)?.rawValue, forKey: key)
+        }
+    }
+
+    private static let actionModifierKeys: [(HintAction, String)] = [
+        (.rightClick, Key.rightClickModifier), (.doubleClick, Key.doubleClickModifier), (.moveCursor, Key.moveCursorModifier),
+    ]
+
+    /// A missing, invalid or repeated stored modifier restores the whole standard mapping.
+    private static func storedActionModifiers(in defaults: UserDefaults) -> ActionModifiers {
+        let stored = actionModifierKeys.map { action, key in
+            defaults.string(forKey: key).flatMap(ActionModifier.init(rawValue:)) ?? ActionModifiers.standard.modifier(for: action)!
+        }
+        return ActionModifiers(rightClick: stored[0], doubleClick: stored[1], moveCursor: stored[2]) ?? .standard
     }
 
     /// Each stored value that is missing or invalid falls back to its default.

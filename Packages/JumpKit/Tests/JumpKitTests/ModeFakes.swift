@@ -47,10 +47,10 @@ final class FakeInput: ModeInputSource {
     func stop() { handler = nil }
 
     func type(_ characters: String, keyCode: UInt16 = 0, shift: Bool = false, command: Bool = false,
-              option: Bool = false, isRepeat: Bool = false) {
+              option: Bool = false, control: Bool = false, isRepeat: Bool = false) {
         for character in characters {
             handler?.keyDown(KeyPress(keyCode: keyCode, characters: String(character), shift: shift,
-                                      command: command, option: option, isRepeat: isRepeat))
+                                      command: command, option: option, control: control, isRepeat: isRepeat))
         }
     }
 

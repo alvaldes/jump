@@ -51,21 +51,14 @@ struct GeneralSettings: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                 }
-                SettingRow(title: "Dock icon") {
-                    Picker("", selection: Binding(
-                        get: { settings.appIcon },
-                        set: {
-                            settings.setAppIcon($0)
+                HStack(spacing: 10) {
+                    ForEach(AppIconChoice.allCases, id: \.self) { icon in
+                        IconTile(image: Image(nsImage: DockPresence.preview(icon)), title: icon.title,
+                                 isSelected: settings.appIcon == icon, iconSize: 48, isTemplate: false) {
+                            settings.setAppIcon(icon)
                             DockPresence.apply(settings)
                         }
-                    )) {
-                        ForEach(AppIconChoice.allCases, id: \.self) { icon in
-                            Text(icon.title).tag(icon)
-                        }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
                 }
                 .disabled(!settings.showInDock)
                 .opacity(settings.showInDock ? 1 : 0.5)
@@ -80,6 +73,9 @@ struct IconTile: View {
     let image: Image
     let title: String
     let isSelected: Bool
+    var iconSize: CGFloat = 22
+    /// Menu bar icons are templates; app icons keep their colors.
+    var isTemplate = true
     let action: () -> Void
 
     @Environment(\.colorScheme) private var scheme
@@ -87,7 +83,8 @@ struct IconTile: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                image.renderingMode(.template).resizable().frame(width: 22, height: 22)
+                image.renderingMode(isTemplate ? .template : .original).resizable()
+                    .frame(width: iconSize, height: iconSize)
                     .foregroundStyle(.primary)
                 Text(title).font(.caption)
             }

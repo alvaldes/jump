@@ -28,6 +28,16 @@ enum DockPresence {
         NSApp.applicationIconImage = image
     }
 
+    /// What the Dock shows for `icon`. The official icon comes from the system,
+    /// drawn in the current icon style (default, dark, clear, tinted); an
+    /// alternate is shown as the image `apply` hands the Dock, which the
+    /// system does not restyle.
+    static func preview(_ icon: AppIconChoice) -> NSImage {
+        let official = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+        guard let name = icon.imageName else { return official }
+        return NSImage(named: name) ?? official
+    }
+
     static func apply(_ settings: JumpSettings) {
         apply(showInDock: settings.showInDock, icon: settings.appIcon)
     }

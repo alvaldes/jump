@@ -78,7 +78,7 @@
       border-radius: 0.45em;
       box-shadow: inset 0 -3px 0 var(--deck-deep), 0 1px 0 rgba(0, 0, 0, 0.25);
     }
-    .keys { display: inline-flex; gap: 0.3rem; vertical-align: middle; }
+    .keys { display: inline-flex; gap: 0.3rem; vertical-align: middle; margin-right: 0.3rem; }
 
     /* Demo window */
     .demo { position: relative; }
@@ -143,6 +143,19 @@
     .details h3 { margin: 0 0 0.4rem; font-size: 1.0625rem; }
     .details p { margin: 0; color: var(--shade); max-width: var(--measure); }
 
+    /* Settings screenshots */
+    .shots { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+    .tabs { display: grid; gap: 0.25rem; }
+    .tab {
+      text-align: left; font: inherit; color: var(--shade);
+      background: transparent; border: 0; border-radius: 10px;
+      padding: 0.7rem 0.9rem; cursor: pointer;
+    }
+    .tab strong { display: block; color: var(--ink); font-weight: 700; }
+    .tab[aria-selected="true"] { background: var(--cap); box-shadow: inset 0 -3px 0 var(--deck-deep), 0 1px 0 rgba(0, 0, 0, 0.2); }
+    .shot { margin: 0; }
+    .shot img { display: block; width: 100%; height: auto; border-radius: 16px; box-shadow: 0 30px 60px -30px rgba(20, 24, 30, 0.6), 0 0 0 1px var(--line); }
+
     /* Install */
     .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: 1.25rem; max-width: 40rem; }
     .steps li { counter-increment: step; display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; align-items: baseline; }
@@ -164,6 +177,8 @@
       .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 2rem; }
       .mode { grid-template-columns: 1fr; gap: 0.75rem; }
       .details { grid-template-columns: 1fr; }
+      .shots { grid-template-columns: 1fr; }
+      .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 520px) {
       .page { padding: 0 1rem; }
@@ -276,6 +291,29 @@
         </div>
       </section>
 
+      <section aria-labelledby="settings-title">
+        <h2 id="settings-title">Set it up the way you work.</h2>
+        <div class="shots">
+          <div class="tabs" role="tablist" aria-label="Settings screens">
+            <button class="tab" role="tab" id="tab-appearance" aria-controls="shot" aria-selected="true" data-shot="appearance" data-alt="Appearance settings: a live preview of the labels, five themes, size and Liquid Glass">
+              <strong>Appearance</strong>Preview themes, size and glass before you use them.
+            </button>
+            <button class="tab" role="tab" id="tab-behavior" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="behavior" data-alt="Behavior settings: the letters labels use, scroll speed, the scroll outline and text recognition">
+              <strong>Behavior</strong>Pick the label letters, scroll speed and text recognition.
+            </button>
+            <button class="tab" role="tab" id="tab-general" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="general" data-alt="General settings: launch at login, three menu bar icons and the optional Dock icon">
+              <strong>General</strong>Choose the menu bar icon and whether JUMP shows in the Dock.
+            </button>
+            <button class="tab" role="tab" id="tab-permissions" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="permissions" data-alt="Permissions settings: Accessibility, required, and Screen Recording, optional">
+              <strong>Permissions</strong>See exactly what JUMP is allowed to do.
+            </button>
+          </div>
+          <figure class="shot" id="shot" role="tabpanel" aria-labelledby="tab-appearance">
+            <img src="assets/screenshots/settings-appearance.webp" width="1560" height="1240" alt="Appearance settings: a live preview of the labels, five themes, size and Liquid Glass">
+          </figure>
+        </div>
+      </section>
+
       <section aria-labelledby="install-title">
         <h2 id="install-title">Install in a minute.</h2>
         <ol class="steps">
@@ -360,6 +398,35 @@
       });
 
       render();
+    })();
+
+    (() => {
+      const tabs = [...document.querySelectorAll(".tab")];
+      const panel = document.getElementById("shot");
+      const image = panel.querySelector("img");
+
+      function select(tab) {
+        tabs.forEach((other) => {
+          const selected = other === tab;
+          other.setAttribute("aria-selected", selected);
+          other.tabIndex = selected ? 0 : -1;
+        });
+        image.src = `assets/screenshots/settings-${tab.dataset.shot}.webp`;
+        image.alt = tab.dataset.alt;
+        panel.setAttribute("aria-labelledby", tab.id);
+      }
+
+      tabs.forEach((tab, i) => {
+        tab.addEventListener("click", () => select(tab));
+        tab.addEventListener("keydown", (event) => {
+          const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+          if (!step) return;
+          event.preventDefault();
+          const next = tabs[(i + step + tabs.length) % tabs.length];
+          select(next);
+          next.focus();
+        });
+      });
     })();
   </script>
 </body>

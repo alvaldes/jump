@@ -144,8 +144,9 @@ struct SettingsSidebar: View {
 }
 
 /// Shapes the hosting window: names it (the `Settings` scene calls it
-/// "<app> Settings") and makes its title bar transparent, so the system does
-/// not paint a separate strip that turns gray when the window loses focus.
+/// "<app> Settings") without showing the name, which the sidebar already
+/// does, and makes its title bar transparent, so the system does not paint a
+/// separate strip that turns gray when the window loses focus.
 private struct WindowChrome: NSViewRepresentable {
     static let titleBarHeight: CGFloat = 28
 
@@ -157,7 +158,9 @@ private struct WindowChrome: NSViewRepresentable {
         // The view joins its window after this pass.
         DispatchQueue.main.async {
             guard let window = view.window else { return }
+            // Still named for Mission Control, the Window menu and VoiceOver.
             window.title = title
+            window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.styleMask.insert(.fullSizeContentView)
         }

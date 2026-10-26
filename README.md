@@ -17,7 +17,7 @@ All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves i
 - **Actions with modifiers.** Holding a modifier while typing a label (or pressing `Return` in text search) chooses the action: none clicks (or places the caret in a text field), `Shift` right-clicks, `⌘` double-clicks, `⌥` only moves the pointer. Clicks wait until the modifier is released, so apps never see it.
 - **Text search** reads text through Accessibility. Matching ignores case and accents, and only counts what is on screen.
 - **OCR fallback (optional).** For windows without usable Accessibility text (terminals, PDFs, images), JUMP can recognize text on screen. It is off by default and needs the Screen Recording permission, requested only when you turn it on. Captures never leave memory.
-- **Appearance.** Five hint themes (Dark, Light, System, Accent, Classic) with readable contrast, label size from 5 to 20 pt, and Liquid Glass (Off, Regular, Clear).
+- **Appearance.** Five hint themes (Dark, Light, System, Accent, Classic) with readable contrast, label size from 7 to 20 pt, and Liquid Glass (Off, Regular, Clear).
 - **App.** Three menu bar icons, optional Dock icon (official or glyph), launch at login.
 - **Leaves the mode when focus moves**, whether by mouse, ⌘-Tab, ⌘\` or a window manager such as AeroSpace.
 

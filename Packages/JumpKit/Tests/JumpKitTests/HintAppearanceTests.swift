@@ -95,14 +95,14 @@ struct JumpSettingsAppearanceTests {
         #expect(settings.hintAppearance.size == HintAppearance.sizeRange.upperBound)
     }
 
-    @Test func sizesGoDownToFivePoints() {
+    @Test func sizesGoDownToSevenPoints() {
         let settings = JumpSettings(defaults: freshDefaults())
 
-        settings.setHintSize(5)
-        #expect(settings.hintAppearance.size == 5)
-        settings.setHintSize(4)
-        #expect(settings.hintAppearance.size == 5)
-        #expect(HintAppearance.sizeRange == 5...20)
+        settings.setHintSize(7)
+        #expect(settings.hintAppearance.size == 7)
+        settings.setHintSize(6)
+        #expect(settings.hintAppearance.size == 7)
+        #expect(HintAppearance.sizeRange == 7...20)
     }
 
     @Test func storedSizesAreRoundedOnLoad() {

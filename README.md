@@ -2,7 +2,7 @@
 
 Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable element gets a short label, type the label to click it. No mouse required.
 
-> Status: early development (v0.3.0, not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
+> Status: v1.0.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
 
 ## Features
 

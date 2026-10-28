@@ -67,6 +67,21 @@
     }
     .download:active { transform: translateY(2px); box-shadow: 0 0 0 #000, 0 6px 16px -10px rgba(0, 0, 0, 0.6); }
     .download svg { width: 1.1rem; height: 1.1rem; }
+    .command {
+      display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%; margin-top: 0.9rem;
+      padding: 0.35rem 0.35rem 0.35rem 0.85rem; border-radius: 10px;
+      background: var(--cap); box-shadow: inset 0 -3px 0 var(--deck-deep), 0 1px 0 rgba(0, 0, 0, 0.2);
+    }
+    .command code { min-width: 0; text-align: left; font: 600 0.875rem/1.45 var(--mono); overflow-wrap: anywhere; user-select: all; }
+    .copy {
+      flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0;
+      border: 0; border-radius: 7px; background: transparent; color: var(--shade); cursor: pointer;
+    }
+    .copy:hover { background: var(--deck); color: var(--ink); }
+    .copy svg { width: 1rem; height: 1rem; }
+    .copy .done, .copy.copied .ready { display: none; }
+    .copy.copied .done { display: block; }
+    .copy.copied { color: var(--ink); }
     .fineprint { font-size: 0.9375rem; color: var(--shade); margin: 1rem 0 0; }
 
     /* Keycaps: the shortcuts as real keys */
@@ -210,6 +225,14 @@
             <svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M9 2h2v9.17l3.59-3.58L16 9l-6 6-6-6 1.41-1.41L9 11.17z M3 16h14v2H3z"/></svg>
             Download for Mac
           </a>
+          <br>
+          <div class="command">
+            <code>brew install --cask alvaldes/tap/jump</code>
+            <button class="copy" type="button" aria-label="Copy command" title="Copy command">
+                        <svg class="ready" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
+                        <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>
+                      </button>
+          </div>
           <p class="fineprint">Version 1.1.0 for macOS 26 and later. Free and open source.</p>
         </div>
 
@@ -320,7 +343,16 @@
       <section aria-labelledby="install-title">
         <h2 id="install-title">Install in a few minutes.</h2>
         <ol class="steps">
-          <li><div><p>Download <a href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">JUMP.dmg</a>, open it and drag JUMP to Applications.</p></div></li>
+          <li><div>
+            <p>Download <a href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">JUMP.dmg</a>, open it and drag JUMP to Applications, or use Homebrew:</p>
+            <div class="command">
+              <code>brew install --cask alvaldes/tap/jump</code>
+              <button class="copy" type="button" aria-label="Copy command" title="Copy command">
+                          <svg class="ready" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
+                          <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>
+                        </button>
+            </div>
+          </div></li>
           <li><div>
             <p>Open JUMP from Applications. macOS stops it the first time: choose <strong>Done</strong>, not Move to Trash.</p>
             <p class="note">JUMP isn't notarized by Apple yet, so macOS can't check it on its own. You confirm it once.</p>
@@ -445,6 +477,26 @@
         });
       });
     })();
+
+    // Copy buttons: copy the command beside them.
+    for (const button of document.querySelectorAll(".copy")) {
+      let reset;
+      button.addEventListener("click", async () => {
+        const text = button.closest(".command").querySelector("code").textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          return;
+        }
+        button.classList.add("copied");
+        button.setAttribute("aria-label", "Copied");
+        clearTimeout(reset);
+        reset = setTimeout(() => {
+          button.classList.remove("copied");
+          button.setAttribute("aria-label", "Copy command");
+        }, 1600);
+      });
+    }
   </script>
 </body>
 </html>

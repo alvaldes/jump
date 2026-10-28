@@ -10,7 +10,12 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 JUMP needs macOS 26 or later.
 
-1. Download [JUMP.dmg](https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg), open it and drag JUMP to Applications.
+1. Download [JUMP.dmg](https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg), open it and drag JUMP to Applications. Or install it with [Homebrew](https://brew.sh):
+
+   ```sh
+   brew install --cask alvaldes/tap/jump
+   ```
+
 2. Open JUMP from Applications. JUMP isn't notarized by Apple yet, so macOS stops it the first time: choose **Done**, not Move to Trash.
 
    <img src="docs/assets/install/blocked.webp" width="262" alt="macOS dialog: “JUMP.app” Not Opened, with Move to Trash and Done buttons">
@@ -90,7 +95,7 @@ To keep it, sign with your own (free) Apple Development certificate:
 
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`, commit, and tag the commit `v<version>`.
 2. `scripts/release.sh` builds the signed Release app and writes `dist/JUMP.dmg` (a fixed name, so the website's download link always gets the latest release). It refuses uncommitted changes, an untagged commit, and an ad-hoc signature (users would lose the Accessibility permission on every update).
-3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed.
+3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed, and updates the version and sha256 of the Homebrew cask in [alvaldes/homebrew-tap](https://github.com/alvaldes/homebrew-tap).
 
 Until JUMP is notarized, macOS asks people to confirm the first launch; [Install](#install) walks through it.
 

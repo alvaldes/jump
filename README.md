@@ -16,20 +16,9 @@ JUMP needs macOS 26 or later.
    brew install --cask alvaldes/tap/jump
    ```
 
-2. Open JUMP from Applications. JUMP isn't notarized by Apple yet, so macOS stops it the first time: choose **Done**, not Move to Trash.
-
-   <img src="docs/assets/install/blocked.webp" width="262" alt="macOS dialog: “JUMP.app” Not Opened, with Move to Trash and Done buttons">
-
-3. Open System Settings → Privacy & Security, scroll down to **Security** and click **Open Anyway** next to “JUMP.app” was blocked. The button shows up for about an hour after you try to open JUMP; if it isn't there, open JUMP again first. macOS may ask for your password.
-
-   <img src="docs/assets/install/settings.webp" width="480" alt="Privacy & Security settings: “JUMP.app” was blocked to protect your Mac, with an Open Anyway button">
-
-4. In the dialog that follows, choose **Open Anyway**. macOS remembers it, so JUMP opens normally from now on; a new version may ask again.
-
-   <img src="docs/assets/install/confirm.webp" width="262" alt="macOS dialog: Open “JUMP.app”?, with Move to Trash, Open Anyway and Done buttons">
-
-5. Allow JUMP in **Accessibility** when it asks (System Settings → Privacy & Security → Accessibility).
-6. Press ⌘⇧Space in any window.
+2. Open JUMP from Applications. JUMP isn't notarized by Apple yet, so macOS stops it the first time: choose **Done**, then open System Settings → Privacy & Security and click **Open Anyway** next to “JUMP.app” was blocked. The [step-by-step guide](https://alvaldes.vercel.app/en/blog/open-unnotarized-mac-apps/) has screenshots.
+3. Allow JUMP in **Accessibility** when it asks (System Settings → Privacy & Security → Accessibility).
+4. Press ⌘⇧Space in any window.
 
 ## Features
 

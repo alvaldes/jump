@@ -14,31 +14,40 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --deck: #d9dce0;
-      --deck-deep: #c9cdd2;
-      --cap: #f5f5f2;
-      --ink: #1d2024;
-      --shade: #5d626a;
       --hint: #ffd54a;
       --hint-ink: #2a2100;
-      --line: rgba(29, 32, 36, 0.14);
       --sans: "Schibsted Grotesk", system-ui, sans-serif;
       --mono: "JetBrains Mono", ui-monospace, monospace;
       --measure: 34rem;
     }
 
+    /* Graphite, the material of the app icon. --cap-face and --cap-edge are RGB triplets the backdrop canvas reads. */
+    :root {
+      color-scheme: dark;
+      --deck: #1f2227; --deck-deep: #0e1013; --deck-end: #17191d; --glow: #353b44;
+      --cap: #2d3137; --ink: #eef0f2; --shade: #a2a8b0; --line: rgba(255, 255, 255, 0.1);
+      --cap-face: 255, 255, 255; --cap-face-alpha: 0.06; --cap-edge: 0, 0, 0; --cap-edge-alpha: 0.4;
+    }
+
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
     body {
+      position: relative;
       margin: 0;
-      background: var(--deck);
+      background:
+        radial-gradient(70rem 40rem at 50% -10%, var(--glow) 0%, transparent 70%),
+        linear-gradient(180deg, var(--deck) 0%, var(--deck-end) 100%);
+      background-color: var(--deck);
       color: var(--ink);
       font: 400 1.0625rem/1.55 var(--sans);
     }
     a { color: inherit; }
     :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
 
-    .page { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
+    /* Backdrop: a field of keycaps where hints come and go */
+    .backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 0; pointer-events: none; z-index: 0; }
+
+    .page { position: relative; z-index: 1; max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
 
     /* Header */
     .top { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 0; }
@@ -48,15 +57,27 @@
     .top nav a:hover { color: var(--ink); }
 
     /* Hero */
-    .hero { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 3.5rem; align-items: center; padding: 3.5rem 0 5rem; }
+    .hero { padding: 1.5rem 0 5rem; }
+    .pitch { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 2rem 4rem; align-items: end; margin-bottom: 2.25rem; }
     h1 {
-      font-size: clamp(2.5rem, 4.6vw, 3.6rem);
-      line-height: 0.98;
-      letter-spacing: -0.035em;
+      font-size: clamp(2.5rem, 4.2vw, 3.6rem);
+      line-height: 1.39;
+      letter-spacing: -0.04em;
       font-weight: 800;
-      margin: 0 0 1.25rem;
+      margin: 0;
     }
-    .lede { font-size: 1.25rem; line-height: 1.5; color: var(--shade); max-width: 28rem; margin: 0 0 2rem; }
+    /* Two hand-drawn hint-yellow strokes under the phrase, drawn once on load.
+       They stop before the "g" so they never cross its descender. */
+    .mark { position: relative; white-space: nowrap; }
+    .mark svg { position: absolute; left: -0.04em; top: calc(100% - 0.2em); width: calc(100% + 0.06em); height: auto; overflow: visible; pointer-events: none; }
+    .mark path {
+      fill: none; stroke: var(--hint); stroke-width: 3.4; stroke-linecap: round;
+      stroke-dasharray: 1; stroke-dashoffset: 1;
+      animation: draw 520ms cubic-bezier(0.4, 0, 0.2, 1) 450ms forwards;
+    }
+    .mark path + path { stroke-width: 2.8; animation-delay: 820ms; animation-duration: 440ms; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .lede { font-size: 1.125rem; line-height: 1.5; color: var(--shade); max-width: 28rem; margin: 0 0 1.25rem; }
     .download {
       display: inline-flex; align-items: center; gap: 0.75rem;
       background: var(--ink); color: var(--cap);
@@ -83,6 +104,8 @@
     .copy.copied .done { display: block; }
     .copy.copied { color: var(--ink); }
     .fineprint { font-size: 0.9375rem; color: var(--shade); margin: 1rem 0 0; }
+    .pitch .command { margin-top: 0.6rem; }
+    .pitch .fineprint { font-size: 0.875rem; margin-top: 0.6rem; }
 
     /* Keycaps: the shortcuts as real keys */
     .key {
@@ -95,54 +118,180 @@
     }
     .keys { display: inline-flex; gap: 0.3rem; vertical-align: middle; margin-right: 0.3rem; }
 
-    /* Demo window */
-    .demo { position: relative; }
-    .window {
-      background: var(--cap);
-      border-radius: 14px;
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 30px 60px -30px rgba(20, 24, 30, 0.55), 0 0 0 1px var(--line);
-      overflow: hidden;
-      font-size: 0.9375rem;
+    /* Demo: a small desktop with a Mail-like window */
+    .demo { position: relative; --select: #0a6cff; --muted: #8a8f97; }
+    .desk {
+      position: relative; overflow: hidden;
+      padding-bottom: 2.6rem;
+      border-radius: 20px;
+      background:
+        radial-gradient(55% 65% at 92% 0%, rgba(255, 213, 74, 0.18), transparent 65%),
+        radial-gradient(70% 80% at 0% 100%, #4b5462 0%, transparent 65%),
+        linear-gradient(155deg, #3b414a 0%, #24282e 55%, #1b1e23 100%);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(20, 24, 30, 0.3), 0 50px 90px -45px rgba(20, 24, 30, 0.85);
       user-select: none;
     }
-    .titlebar { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--line); }
-    .lights { display: flex; gap: 0.4rem; margin-right: 0.6rem; }
-    .lights span { width: 0.75rem; height: 0.75rem; border-radius: 50%; background: #c7cad0; }
-    .tool {
-      position: relative;
-      font: 500 0.8125rem var(--sans); color: var(--ink);
-      background: transparent; border: 1px solid var(--line); border-radius: 7px;
-      padding: 0.3rem 0.65rem; cursor: default;
+    .menubar {
+      display: flex; align-items: center; gap: 1.1rem; height: 1.75rem; padding: 0 0.9rem;
+      font: 500 0.75rem/1 var(--sans); color: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.06);
     }
-    .spacer { flex: 1; }
-    .body { display: grid; grid-template-columns: 10.5rem 1fr; min-height: 21rem; }
-    .side { border-right: 1px solid var(--line); padding: 0.75rem 0.5rem; display: grid; align-content: start; gap: 0.15rem; }
-    .side .item, .row {
-      position: relative; display: block; width: 100%; text-align: left;
-      font: inherit; color: inherit; background: transparent; border: 0; border-radius: 7px; cursor: default;
-    }
-    .side .item { padding: 0.4rem 0.6rem; }
-    .list { padding: 0.5rem; display: grid; align-content: start; gap: 0.25rem; }
-    .row { padding: 0.85rem 0.9rem; border-bottom: 1px solid var(--line); border-radius: 0; }
-    .row strong { display: block; font-weight: 700; }
-    .row span { color: var(--shade); }
-    .is-clicked { background: rgba(29, 32, 36, 0.1) !important; }
+    .menubar strong { font-weight: 700; }
+    .menubar .tray { display: flex; align-items: center; gap: 0.85rem; margin-left: auto; }
+    .menubar img { width: 0.95rem; height: 0.95rem; border-radius: 3px; }
 
-    .label {
-      position: absolute; top: -0.55rem; left: -0.35rem; z-index: 2;
-      font: 600 0.75rem/1 var(--mono); letter-spacing: 0.04em;
-      background: var(--hint); color: var(--hint-ink);
-      padding: 0.22rem 0.32rem; border-radius: 5px;
-      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-      cursor: pointer; border: 0;
-      transition: opacity 120ms ease;
+    .window {
+      position: relative;
+      /* The window keeps its own light palette whatever the page theme is. */
+      --ink: #1d2024; --shade: #5d626a;
+      display: grid; grid-template-columns: 11rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0.4rem;
+      /* Sized so the whole desktop fits in the first screen; extra mail is clipped like a scrolled list. */
+      height: clamp(15rem, calc(100svh - 31rem), 26rem);
+      margin: 1.6rem 2rem 0; padding: 0.4rem;
+      color: var(--ink); background: #fbfbfa; border-radius: 16px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 30px 50px -20px rgba(0, 0, 0, 0.75);
+      font-size: 0.875rem;
     }
+    .window button {
+      position: relative; font: inherit; color: inherit; text-align: left;
+      background: transparent; border: 0; cursor: default;
+      transition: transform 120ms ease, background-color 160ms ease, color 160ms ease, padding 320ms ease;
+    }
+    .window .is-pressed { transform: scale(0.96); }
+
+    .sidebar {
+      display: grid; align-content: start; gap: 0.1rem; padding: 0.75rem 0.45rem; min-height: 0; overflow: hidden;
+      background: linear-gradient(180deg, #ebedf0, #e2e5e9); border-radius: 12px;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+    .lights { display: flex; gap: 0.45rem; padding: 0 0.35rem 0.9rem; }
+    .lights span { width: 0.75rem; height: 0.75rem; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.25); }
+    .lights span:nth-child(1) { background: #ff5f57; }
+    .lights span:nth-child(2) { background: #febc2e; }
+    .lights span:nth-child(3) { background: #28c840; }
+    .window .mailbox { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; border-radius: 8px; }
+    .mailbox svg { flex: none; width: 1rem; height: 1rem; color: var(--select); }
+    .mailbox .count { margin-left: auto; color: var(--muted); font-size: 0.75rem; }
+    .window .mailbox.is-current { background: rgba(29, 32, 36, 0.09); }
+
+    .main { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); container-type: inline-size; }
+    .toolbar { display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.2rem 0.55rem; }
+    .toolbar .tool { flex: none; }
+    .window .tool {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.45rem 0.75rem; border-radius: 999px;
+      font: 500 0.8125rem/1 var(--sans);
+      background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    .tool svg { width: 0.95rem; height: 0.95rem; }
+    .window .search { flex: 0 1 8.5rem; margin-left: auto; min-width: 0; color: var(--muted); }
+    @container (max-width: 27rem) {
+      .search .placeholder, .tool .name-optional { display: none; }
+      .window .search { flex: none; }
+    }
+    .window .search.is-focused { color: var(--ink); box-shadow: 0 0 0 1px var(--select), 0 0 0 4px rgba(10, 108, 255, 0.25); }
+    .search.is-focused .placeholder { display: none; }
+    .search.is-focused::after { content: ""; width: 1px; height: 0.95rem; background: var(--select); animation: blink 1s steps(1) infinite; }
+
+    .content { display: grid; grid-template-columns: minmax(15rem, 21rem) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; }
+    /* Padding keeps the first row's hint inside the clipped list. */
+    .list { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; overflow: hidden; padding: 0.5rem 0 0 0.4rem; }
+    .reader { grid-column: 2; grid-row: 1; padding: 1.1rem 1.6rem; border-left: 1px solid rgba(29, 32, 36, 0.08); }
+    .reader .empty { display: grid; place-items: center; height: 100%; margin: 0; color: var(--muted); }
+    .reader [hidden] { display: none; }
+    .letter h3 { margin: 0 0 1rem; font-size: 1.375rem; letter-spacing: -0.015em; line-height: 1.2; }
+    .letter-meta { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(29, 32, 36, 0.08); }
+    .letter-meta .avatar { width: 2.25rem; height: 2.25rem; }
+    .letter-meta strong, .letter-meta div span { display: block; }
+    .letter-meta div span, .letter-meta time { color: var(--muted); font-size: 0.8125rem; }
+    .letter-body p { margin: 0 0 0.75rem; max-width: 36rem; line-height: 1.6; }
+    .slot { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr; transition: grid-template-rows 320ms ease, opacity 220ms ease; }
+    .slot.is-archived { grid-template-rows: 0fr; opacity: 0; }
+    .slot.is-clipped, .slot[hidden] { display: none; }
+    .draft { margin-right: 0.25rem; color: #d63c2f; font-weight: 600; }
+    .row.is-selected .draft { color: #fff; }
+    .slot.is-archived .row { overflow: hidden; padding-block: 0; transform: translateX(-12%); }
+    .window .row {
+      min-height: 0;
+      display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 0.65rem; align-items: start;
+      padding: 0.6rem 0.7rem 0.6rem 0.9rem; border-radius: 10px;
+    }
+    .row.is-unread::before {
+      content: ""; position: absolute; left: 0.25rem; top: 1.3rem;
+      width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--select);
+    }
+    .avatar {
+      display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+      font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--tone);
+    }
+    .row .meta { display: flex; justify-content: space-between; gap: 0.5rem; }
+    .row strong { font-weight: 700; }
+    .row time { color: var(--muted); font-size: 0.75rem; }
+    .row .preview { display: block; color: var(--shade); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .window .row.is-selected { background: var(--select); color: #fff; }
+    .row.is-selected .preview, .row.is-selected time { color: rgba(255, 255, 255, 0.82); }
+    .row.is-selected::before { background: #fff; }
+
+    .compose {
+      grid-column: 2; grid-row: 1; z-index: 3; margin-left: 0.4rem;
+      display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-height: 0; overflow: hidden;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 18px 40px -16px rgba(20, 24, 30, 0.45);
+      opacity: 0; visibility: hidden; transform: translateY(0.75rem);
+      transition: opacity 180ms ease, transform 220ms ease, visibility 0s 220ms;
+    }
+    .compose.is-open { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+    .list { transition: opacity 180ms ease; }
+    /* Narrow windows drop the reader; the draft then covers the list. */
+    @container (max-width: 36rem) {
+      .content { grid-template-columns: minmax(0, 1fr); }
+      .reader { display: none; }
+      .compose { grid-column: 1; margin-left: 0; }
+      .main:has(.compose.is-open) .list { opacity: 0; }
+    }
+    .compose .field { display: flex; gap: 0.5rem; padding: 0.55rem 0.85rem; border-bottom: 1px solid rgba(29, 32, 36, 0.08); }
+    .compose .field span { color: var(--muted); }
+    .compose .text { padding: 0.7rem 0.85rem; }
+    .compose .text::after { content: ""; display: inline-block; width: 1px; height: 1em; margin-left: 1px; vertical-align: text-bottom; background: var(--select); animation: blink 1s steps(1) infinite; }
+    .compose .actions { display: flex; justify-content: flex-end; gap: 0.4rem; padding: 0.55rem; }
+    .window .send { background: var(--select); color: #fff; box-shadow: none; }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* JUMP's hints, in the default yellow theme */
+    .label {
+      position: absolute; top: -0.5rem; left: -0.35rem; z-index: 4;
+      font: 600 0.6875rem/1 var(--mono); letter-spacing: 0.04em;
+      background: var(--hint); color: var(--hint-ink);
+      padding: 0.22rem 0.3rem; border-radius: 5px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 4px 10px -4px rgba(0, 0, 0, 0.35);
+      cursor: pointer; border: 0;
+      opacity: 0; transform: scale(0.6); pointer-events: none;
+      transition: opacity 140ms ease, transform 220ms cubic-bezier(0.3, 1.6, 0.5, 1);
+    }
+    .demo.is-on .label {
+      opacity: 1; transform: none; pointer-events: auto;
+      transition-delay: calc(var(--i) * 18ms);
+    }
+    .demo.is-on .label.is-out { opacity: 0; transform: scale(0.8); pointer-events: none; transition-delay: 0s; }
     .label .typed { opacity: 0.4; }
-    .label[hidden] { display: none; }
-    .demo.is-off .label { opacity: 0; pointer-events: none; }
+
+    .keycast {
+      position: absolute; left: 50%; bottom: 0.6rem;
+      display: flex; gap: 0.3rem;
+      opacity: 0; transform: translate(-50%, 0.4rem);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+    .keycast.is-showing { opacity: 1; transform: translate(-50%, 0); }
+    .keycast kbd {
+      min-width: 1.7rem; padding: 0.38rem 0.5rem; border-radius: 6px; text-align: center;
+      font: 600 0.75rem/1 var(--mono); color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.14);
+    }
 
     .demo-caption { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; color: var(--shade); font-size: 0.9375rem; min-height: 2.2rem; }
-    .demo-caption output { color: var(--ink); font-weight: 500; }
+    .demo-caption output { color: var(--ink); font-weight: 500; text-align: right; }
 
     /* Modes */
     section { padding: 4.5rem 0; border-top: 1px solid var(--line); }
@@ -162,14 +311,34 @@
     .shots { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; align-items: start; }
     .tabs { display: grid; gap: 0.25rem; }
     .tab {
+      position: relative;
       text-align: left; font: inherit; color: var(--shade);
       background: transparent; border: 0; border-radius: 10px;
       padding: 0.7rem 0.9rem; cursor: pointer;
     }
     .tab strong { display: block; color: var(--ink); font-weight: 700; }
     .tab[aria-selected="true"] { background: var(--cap); box-shadow: inset 0 -3px 0 var(--deck-deep), 0 1px 0 rgba(0, 0, 0, 0.2); }
-    .shot { margin: 0; }
-    .shot img { display: block; width: 100%; height: auto; border-radius: 16px; box-shadow: 0 30px 60px -30px rgba(20, 24, 30, 0.6), 0 0 0 1px var(--line); }
+    /* While pinned, the selected tab shows how far the scroll is through its step. */
+    .tab::after {
+      content: ""; position: absolute; left: 0.9rem; right: 0.9rem; bottom: 0.45rem; height: 2px;
+      border-radius: 2px; background: var(--hint);
+      transform: scaleX(var(--fill, 0)); transform-origin: left; opacity: 0;
+    }
+    .scrolly.is-pinned .tab[aria-selected="true"]::after { opacity: 1; }
+    .shot { display: grid; margin: 0; }
+    .shot img {
+      grid-area: 1 / 1; display: block; width: 100%; height: auto;
+      border-radius: 16px; box-shadow: 0 30px 60px -30px rgba(20, 24, 30, 0.6), 0 0 0 1px var(--line);
+      opacity: 0; transition: opacity 280ms ease;
+    }
+    .shot img.is-active { opacity: 1; }
+
+    /* Pinned while scrolling through one step per settings screen. */
+    @media (min-width: 861px) and (min-height: 600px) {
+      .scrolly.is-pinned { height: calc(100svh + 3 * 75svh); padding: 0; }
+      .scrolly.is-pinned .pin { position: sticky; top: 0; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: 2.5rem 0; }
+      .scrolly.is-pinned .shot img { width: auto; max-width: 100%; max-height: calc(100svh - 13rem); justify-self: start; }
+    }
 
     /* Install */
     .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: 1.25rem; max-width: 40rem; }
@@ -189,7 +358,8 @@
     footer nav { display: flex; gap: 1.5rem; }
 
     @media (max-width: 860px) {
-      .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 2rem; }
+      .hero { padding-top: 2rem; }
+      .pitch { grid-template-columns: 1fr; margin-bottom: 2.5rem; }
       .mode { grid-template-columns: 1fr; gap: 0.75rem; }
       .details { grid-template-columns: 1fr; }
       .shots { grid-template-columns: 1fr; }
@@ -197,16 +367,18 @@
     }
     @media (max-width: 520px) {
       .page { padding: 0 1rem; }
-      .body { grid-template-columns: 1fr; }
-      .side { display: none; }
-      .titlebar .tool:nth-of-type(n+3) { display: none; }
+      .window { grid-template-columns: 1fr; margin: 1rem 0.75rem 0; }
+      .sidebar { display: none; }
+      .menubar .menu { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
-      * { transition: none !important; }
+      * { transition: none !important; animation: none !important; }
+      .mark path { stroke-dashoffset: 0; }
     }
   </style>
 </head>
 <body>
+  <canvas class="backdrop" aria-hidden="true"></canvas>
   <div class="page">
     <header class="top">
       <a class="brand" href="./"><img src="assets/favicon.png" alt="" width="32" height="32">JUMP</a>
@@ -215,8 +387,9 @@
 
     <main>
       <div class="hero">
-        <div>
-          <h1>Click anything on your Mac without touching the mouse.</h1>
+        <div class="pitch">
+          <h1>Click anything on your Mac <span class="mark">without touchin<svg viewBox="0 0 300 20" aria-hidden="true"><path pathLength="1" d="M3 6.5C48 3.8 104 4.6 160 4.2S258 3.4 297 5.2"/><path pathLength="1" d="M14 15.5C70 12.4 132 12.9 186 12.1S262 11.6 288 13.4"/></svg></span>g the mouse.</h1>
+          <div>
           <p class="lede">Press a shortcut and every button, link and field in the window gets a short label. Type the label to click it.</p>
           <a class="download" href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M9 2h2v9.17l3.59-3.58L16 9l-6 6-6-6 1.41-1.41L9 11.17z M3 16h14v2H3z"/></svg>
@@ -231,32 +404,126 @@
                       </button>
           </div>
           <p class="fineprint">Version 1.1.0 for macOS 26 and later. Free and open source.</p>
+          </div>
         </div>
 
         <div class="demo" id="demo">
-          <div class="window" role="application" aria-label="Demo window: type a yellow label to click that element">
-            <div class="titlebar">
-              <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
-              <button class="tool" data-name="New message" tabindex="-1">New</button>
-              <button class="tool" data-name="Reply" tabindex="-1">Reply</button>
-              <button class="tool" data-name="Archive" tabindex="-1">Archive</button>
-              <span class="spacer"></span>
-              <button class="tool" data-name="Search" tabindex="-1">Search</button>
+          <div class="desk">
+            <div class="menubar" aria-hidden="true">
+              <strong>Mail</strong><span class="menu">File</span><span class="menu">Edit</span><span class="menu">View</span><span class="menu">Message</span>
+              <span class="tray"><img src="assets/favicon.png" alt=""><span class="clock"></span></span>
             </div>
-            <div class="body">
-              <nav class="side" aria-label="Demo mailboxes">
-                <button class="item" data-name="Inbox" tabindex="-1">Inbox</button>
-                <button class="item" data-name="Drafts" tabindex="-1">Drafts</button>
-                <button class="item" data-name="Sent" tabindex="-1">Sent</button>
-                <button class="item" data-name="Trash" tabindex="-1">Trash</button>
+            <div class="window" role="application" aria-label="Demo window: type a yellow label to click that element">
+              <nav class="sidebar" aria-label="Demo mailboxes">
+                <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
+                <button class="mailbox is-current" data-action="mailbox" data-name="Inbox" tabindex="-1">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 5 4h10l2 7.5V16H3z"/><path d="M3 11.5h4l1 2h4l1-2h4"/></svg>
+                  Inbox<span class="count">4</span>
+                </button>
+                <button class="mailbox" data-action="mailbox" data-name="Drafts" tabindex="-1">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h7l3 3v11H5z"/><path d="M12 3v3h3"/></svg>
+                  Drafts<span class="count">2</span>
+                </button>
+                <button class="mailbox" data-action="mailbox" data-name="Sent" tabindex="-1">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 14-6-5 13-2.5-5.5z"/><path d="M9.5 11.5 17 4"/></svg>
+                  Sent
+                </button>
+                <button class="mailbox" data-action="mailbox" data-name="Trash" tabindex="-1">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11"/></svg>
+                  Trash
+                </button>
               </nav>
-              <div class="list">
-                <button class="row" data-name="the message from Dana" tabindex="-1"><strong>Dana Ruiz</strong><span>Notes from Thursday's review</span></button>
-                <button class="row" data-name="the message from the build bot" tabindex="-1"><strong>Build bot</strong><span>main is green again</span></button>
-                <button class="row" data-name="the message from Leo" tabindex="-1"><strong>Leo Park</strong><span>Lunch on Friday?</span></button>
-                <button class="row" data-name="the message from the bookstore" tabindex="-1"><strong>Corner Books</strong><span>Your order is ready for pickup</span></button>
+              <div class="main">
+                <div class="toolbar">
+                  <button class="tool" data-action="new" data-name="New message" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H4v12h12v-5"/><path d="m8 12 1-3 7-7 2 2-7 7z"/></svg>
+                    New
+                  </button>
+                  <button class="tool" data-action="reply" data-name="Reply" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5 3 10l5 5"/><path d="M3 10h9a5 5 0 0 1 5 5v1"/></svg>
+                    <span class="name-optional">Reply</span>
+                  </button>
+                  <button class="tool" data-action="archive" data-name="Archive" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14v3H3zM4 7v9h12V7"/><path d="M8 10h4"/></svg>
+                    <span class="name-optional">Archive</span>
+                  </button>
+                  <button class="tool search" data-action="search" data-name="Search" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="5"/><path d="m13 13 4 4"/></svg>
+                    <span class="placeholder">Search</span>
+                  </button>
+                </div>
+                <div class="content">
+                <div class="list">
+                  <div class="slot" data-box="inbox"><button class="row is-unread" data-action="message" data-id="dana" data-name="the message from Dana" data-from="Dana Ruiz" data-subject="Notes from Thursday's review" tabindex="-1">
+                    <span class="avatar" style="--tone: #c48a3f">DR</span>
+                    <span><span class="meta"><strong>Dana Ruiz</strong><time>9:12</time></span><span class="preview">Notes from Thursday's review</span></span>
+                  </button></div>
+                  <div class="slot" data-box="inbox"><button class="row is-unread" data-action="message" data-id="build" data-name="the message from the build bot" data-from="Build bot" data-subject="main is green again" tabindex="-1">
+                    <span class="avatar" style="--tone: #5f7f9c">CI</span>
+                    <span><span class="meta"><strong>Build bot</strong><time>8:47</time></span><span class="preview">main is green again</span></span>
+                  </button></div>
+                  <div class="slot" data-box="inbox"><button class="row is-unread" data-action="message" data-id="maya" data-name="the message from Maya" data-from="Maya Chen" data-subject="Design crit moved to 3 pm" tabindex="-1">
+                    <span class="avatar" style="--tone: #4f8f8a">MC</span>
+                    <span><span class="meta"><strong>Maya Chen</strong><time>8:30</time></span><span class="preview">Design crit moved to 3 pm</span></span>
+                  </button></div>
+                  <div class="slot" data-box="inbox"><button class="row is-unread" data-action="message" data-id="leo" data-name="the message from Leo" data-from="Leo Park" data-subject="Lunch on Friday?" tabindex="-1">
+                    <span class="avatar" style="--tone: #7b9a5e">LP</span>
+                    <span><span class="meta"><strong>Leo Park</strong><time>Tue</time></span><span class="preview">Lunch on Friday?</span></span>
+                  </button></div>
+                  <div class="slot" data-box="inbox"><button class="row" data-action="message" data-id="books" data-name="the message from the bookstore" data-from="Corner Books" data-subject="Your order is ready for pickup" tabindex="-1">
+                    <span class="avatar" style="--tone: #a26f8f">CB</span>
+                    <span><span class="meta"><strong>Corner Books</strong><time>Mon</time></span><span class="preview">Your order is ready for pickup</span></span>
+                  </button></div>
+                  <div class="slot" data-box="drafts" hidden><button class="row" data-action="message" data-id="draft-maya" data-name="the draft to Maya" data-from="You" data-to="Maya Chen" data-subject="Label theme mockups" tabindex="-1">
+                    <span class="avatar" style="--tone: #4f8f8a">MC</span>
+                    <span><span class="meta"><strong>Maya Chen</strong><time></time></span><span class="preview"><span class="draft">Draft</span> Label theme mockups</span></span>
+                  </button></div>
+                  <div class="slot" data-box="drafts" hidden><button class="row" data-action="message" data-id="draft-leo" data-name="the draft to Leo" data-from="You" data-to="Leo Park" data-subject="Re: Lunch on Friday?" tabindex="-1">
+                    <span class="avatar" style="--tone: #7b9a5e">LP</span>
+                    <span><span class="meta"><strong>Leo Park</strong><time></time></span><span class="preview"><span class="draft">Draft</span> Re: Lunch on Friday?</span></span>
+                  </button></div>
+                  <div class="slot" data-box="sent" hidden><button class="row" data-action="message" data-id="sent-team" data-name="the release notes you sent" data-from="You" data-to="Team" data-subject="JUMP 1.1.0 release notes" tabindex="-1">
+                    <span class="avatar" style="--tone: #3f4652">T</span>
+                    <span><span class="meta"><strong>Team</strong><time></time></span><span class="preview">JUMP 1.1.0 release notes</span></span>
+                  </button></div>
+                  <div class="slot" data-box="sent" hidden><button class="row" data-action="message" data-id="sent-dana" data-name="your reply to Dana" data-from="You" data-to="Dana Ruiz" data-subject="Re: Agenda for Thursday" tabindex="-1">
+                    <span class="avatar" style="--tone: #c48a3f">DR</span>
+                    <span><span class="meta"><strong>Dana Ruiz</strong><time></time></span><span class="preview">Re: Agenda for Thursday</span></span>
+                  </button></div>
+                  <div class="slot" data-box="sent" hidden><button class="row" data-action="message" data-id="sent-books" data-name="your message to the bookstore" data-from="You" data-to="Corner Books" data-subject="Order 4821" tabindex="-1">
+                    <span class="avatar" style="--tone: #a26f8f">CB</span>
+                    <span><span class="meta"><strong>Corner Books</strong><time></time></span><span class="preview">Order 4821</span></span>
+                  </button></div>
+                  <div class="slot" data-box="trash" hidden><button class="row" data-action="message" data-id="trash-digest" data-name="the weekly digest" data-from="Weekly Digest" data-subject="Your week in links" tabindex="-1">
+                    <span class="avatar" style="--tone: #7a7f88">WD</span>
+                    <span><span class="meta"><strong>Weekly Digest</strong><time></time></span><span class="preview">Your week in links</span></span>
+                  </button></div>
+                  <div class="slot" data-box="trash" hidden><button class="row" data-action="message" data-id="trash-prize" data-name="the prize message" data-from="Prize Desk" data-subject="You've been selected!" tabindex="-1">
+                    <span class="avatar" style="--tone: #b35f4a">PD</span>
+                    <span><span class="meta"><strong>Prize Desk</strong><time></time></span><span class="preview">You've been selected!</span></span>
+                  </button></div>
+                </div>
+                <article class="reader">
+                  <p class="empty">No message selected</p>
+                  <div class="letter" hidden>
+                    <h3></h3>
+                    <div class="letter-meta"><span class="avatar"></span><div><strong></strong><span>To: you</span></div><time></time></div>
+                    <div class="letter-body"></div>
+                  </div>
+                </article>
+                <div class="compose" aria-label="New message">
+                  <div class="field"><span>To:</span><span class="to"></span></div>
+                  <div class="field"><span>Subject:</span><span class="subject"></span></div>
+                  <div class="text"></div>
+                  <div class="actions">
+                    <button class="tool" data-action="discard" data-name="Discard" tabindex="-1">Discard</button>
+                    <button class="tool send" data-action="send" data-name="Send" tabindex="-1">Send</button>
+                  </div>
+                </div>
+                </div>
               </div>
             </div>
+            <div class="keycast" aria-hidden="true"></div>
           </div>
           <div class="demo-caption">
             <span>Type a yellow label, like <span class="keys"><kbd class="key">S</kbd><kbd class="key">A</kbd></span>, or tap one.</span>
@@ -314,7 +581,8 @@
         </div>
       </section>
 
-      <section aria-labelledby="settings-title">
+      <section class="scrolly" aria-labelledby="settings-title">
+        <div class="pin">
         <h2 id="settings-title">Set it up the way you work.</h2>
         <div class="shots">
           <div class="tabs" role="tablist" aria-label="Settings screens">
@@ -332,8 +600,9 @@
             </button>
           </div>
           <figure class="shot" id="shot" role="tabpanel" aria-labelledby="tab-appearance">
-            <img src="assets/screenshots/settings-appearance.webp" width="1560" height="1240" alt="Appearance settings: a live preview of the labels, five themes, size and Liquid Glass">
+            <img class="is-active" src="assets/screenshots/settings-appearance.webp" width="1560" height="1240" alt="Appearance settings: a live preview of the labels, five themes, size and Liquid Glass">
           </figure>
+        </div>
         </div>
       </section>
 
@@ -368,51 +637,311 @@
 
   <script>
     (() => {
-      // Built from JUMP's default hint letters, spread over several first
-      // letters so the first key already narrows the choice.
-      const labels = ["SA", "SD", "SF", "SJ", "DA", "DS", "DF", "DJ", "FA", "FS", "FD", "FJ", "JA"];
       const demo = document.getElementById("demo");
       const status = document.getElementById("demo-status");
-      const targets = [...demo.querySelectorAll("[data-name]")];
-      let typed = "";
-      let resetTimer;
+      const keycast = demo.querySelector(".keycast");
+      const compose = demo.querySelector(".compose");
+      const composeText = compose.querySelector(".text");
+      const search = demo.querySelector(".search");
+      const reader = demo.querySelector(".reader");
+      const letter = reader.querySelector(".letter");
+      const bodies = {
+        dana: ["I cleaned up the notes from Thursday's review and added the open questions at the end.", "Can you look at the part about keyboard navigation before Monday?"],
+        build: ["All 214 checks passed on main.", "The flaky scroll test is fixed and the release build is ready to sign."],
+        maya: ["The design crit moved to 3 pm, same room.", "Bring the label theme mockups if you have them."],
+        leo: ["There's a new ramen place two blocks from the office.", "Friday at 12:30?"],
+        books: ["Your order is ready: The Design of Everyday Things.", "We hold orders at the front desk for seven days."],
+        "draft-maya": ["Here are the three label themes we talked about: yellow, graphite and glass.", "I still need to export the dark variants"],
+        "draft-leo": ["Sounds good. 12:30 works, I'll meet you there."],
+        "sent-team": ["JUMP 1.1.0 is out: label themes, scroll mode with gg and G, and text search that ignores accents.", "Thanks to everyone who reported issues."],
+        "sent-dana": ["Thanks for the agenda. I added the keyboard navigation review as the last item."],
+        "sent-books": ["Hi, could I pick up order 4821 on Saturday morning?"],
+        "trash-digest": ["Ten links worth reading this week, starting with a long piece on keyboard-first design."],
+        "trash-prize": ["Congratulations! Click here to claim your prize.", "This offer expires today."],
+      };
+      const rows = [...demo.querySelectorAll(".row")];
+      const unread = rows.filter((row) => row.classList.contains("is-unread"));
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      const pills = targets.map((target, i) => {
-        const pill = document.createElement("button");
-        pill.className = "label";
-        pill.type = "button";
-        pill.tabIndex = -1;
-        pill.setAttribute("aria-label", `${labels[i]}: ${target.dataset.name}`);
-        pill.addEventListener("click", () => activate(i));
-        target.append(pill);
-        return pill;
-      });
+      // Built from JUMP's default hint letters, spread over several first
+      // letters so the first key already narrows the choice.
+      const pool = [];
+      for (const first of "SDFJKL") for (const second of "ASDFJKL") if (first !== second) pool.push(first + second);
+
+      let hints = [];
+      let typed = "";
+      let autoplay = !reduceMotion;
+      let run = 0; // bumped to cancel the autoplay sequence
+      let inView = false;
+      let keycastTimer, showTimer;
+
+      // Like JUMP, only label what is visible right now.
+      function available(target) {
+        if (target.closest(".is-archived, .is-clipped, [hidden]")) return false;
+        const open = compose.classList.contains("is-open");
+        if (target.closest(".compose")) return open;
+        // A narrow window has no reader, so the draft covers the list.
+        return !(open && !reader.offsetParent && target.closest(".list"));
+      }
+
+      function showHints() {
+        for (const hint of hints) hint.pill.remove();
+        typed = "";
+        const targets = [...demo.querySelectorAll("[data-action]")].filter(available);
+        hints = targets.map((target, i) => {
+          const pill = document.createElement("span");
+          pill.className = "label";
+          pill.style.setProperty("--i", i);
+          pill.setAttribute("aria-label", `${pool[i]}: ${target.dataset.name}`);
+          target.append(pill);
+          return { target, label: pool[i], pill };
+        });
+        render();
+        demo.classList.remove("is-on");
+        demo.offsetWidth; // restart the pop-in
+        demo.classList.add("is-on");
+      }
+
+      function hideHints() {
+        demo.classList.remove("is-on");
+        typed = "";
+      }
 
       function render() {
-        pills.forEach((pill, i) => {
-          const label = labels[i];
-          pill.hidden = !label.startsWith(typed);
+        for (const { label, pill } of hints) {
+          pill.classList.toggle("is-out", !label.startsWith(typed));
           pill.innerHTML = `<span class="typed">${label.slice(0, typed.length)}</span>${label.slice(typed.length)}`;
-        });
+        }
       }
 
-      function activate(i) {
-        const target = targets[i];
-        target.classList.add("is-clicked");
-        status.textContent = `Clicked ${target.dataset.name}`;
-        typed = "";
-        render();
-        clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => target.classList.remove("is-clicked"), 700);
+      function flash(keys) {
+        keycast.replaceChildren(...keys.map((key) => Object.assign(document.createElement("kbd"), { textContent: key })));
+        keycast.classList.add("is-showing");
+        clearTimeout(keycastTimer);
+        keycastTimer = setTimeout(() => keycast.classList.remove("is-showing"), 700);
       }
+
+      function press(letter) {
+        const next = typed + letter;
+        if (!hints.some(({ label }) => label.startsWith(next))) {
+          status.textContent = `No label starts with ${next}`;
+          return;
+        }
+        typed = next;
+        const hit = hints.find(({ label }) => label === typed);
+        if (hit) return activate(hit.target);
+        status.textContent = "";
+        render();
+      }
+
+      function activate(target) {
+        target.classList.add("is-pressed");
+        setTimeout(() => target.classList.remove("is-pressed"), 160);
+        hideHints();
+        status.textContent = perform(target);
+        clearTimeout(showTimer);
+        if (!autoplay) showTimer = setTimeout(showHints, 700);
+      }
+
+      const selected = () => rows.find((row) => row.classList.contains("is-selected"));
+
+      function perform(target) {
+        const { action, name } = target.dataset;
+        search.classList.remove("is-focused");
+        if (action === "mailbox") {
+          showBox(target);
+          return `Opened ${name}`;
+        }
+        if (action === "message") {
+          rows.forEach((row) => row.classList.toggle("is-selected", row === target));
+          target.classList.remove("is-unread");
+          read(target);
+          return `Opened ${name}`;
+        }
+        if (action === "archive") {
+          const row = selected();
+          if (!row) return "Select a message to archive it";
+          row.classList.remove("is-selected");
+          read(null);
+          row.closest(".slot").classList.add("is-archived");
+          if (!autoplay) setTimeout(() => restore(row), 3000);
+          return `Archived ${row.dataset.name}`;
+        }
+        if (action === "new") {
+          openCompose({}, {
+            to: "Maya Chen",
+            subject: "Label theme mockups",
+            text: "Here are the three label themes we talked about. Let me know which one you like.",
+          });
+          return "Started a new message";
+        }
+        if (action === "reply") {
+          const row = selected();
+          if (!row) return "Select a message to reply to it";
+          const to = row.dataset.to || row.dataset.from;
+          const { subject } = row.dataset;
+          openCompose({ to, subject: subject.startsWith("Re: ") ? subject : `Re: ${subject}` }, {
+            text: "Thanks! I'll take a look and get back to you today.",
+          });
+          return `Replying to ${to}`;
+        }
+        if (action === "search") {
+          search.classList.add("is-focused");
+          return "Clicked Search";
+        }
+        closeCompose();
+        return action === "send" ? "Sent" : "Discarded the draft";
+      }
+
+      // Shows a message in the reader, or the empty state for null.
+      function read(row) {
+        letter.hidden = !row;
+        reader.querySelector(".empty").hidden = !!row;
+        if (!row) return;
+        // Sent mail and drafts are from you, to someone else.
+        const { to } = row.dataset;
+        const avatar = row.querySelector(".avatar");
+        const meta = letter.querySelector(".letter-meta .avatar");
+        meta.textContent = to ? "Me" : avatar.textContent;
+        meta.style.cssText = to ? "--tone: #6b7280" : avatar.style.cssText;
+        letter.querySelector("h3").textContent = row.dataset.subject;
+        letter.querySelector(".letter-meta strong").textContent = row.dataset.from;
+        letter.querySelector(".letter-meta div span").textContent = `To: ${to || "you"}`;
+        letter.querySelector(".letter-meta time").textContent = row.querySelector("time").textContent;
+        letter.querySelector(".letter-body").replaceChildren(
+          ...bodies[row.dataset.id].map((text) => Object.assign(document.createElement("p"), { textContent: text }))
+        );
+      }
+
+      // Switches the list to that mailbox's messages.
+      function showBox(mailbox) {
+        const name = mailbox.dataset.name.toLowerCase();
+        demo.querySelectorAll(".mailbox").forEach((box) => box.classList.toggle("is-current", box === mailbox));
+        slots.forEach((slot) => (slot.hidden = slot.dataset.box !== name));
+        rows.forEach((row) => row.classList.remove("is-selected"));
+        read(null);
+        fit();
+      }
+
+      // The demo's letter keys belong to the hints, so a draft writes itself.
+      let draft = 0; // bumped whenever a draft opens or closes, to stop its typing
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      async function write(field, text, id) {
+        for (const char of text) {
+          if (id !== draft) return;
+          field.textContent += char;
+          await sleep(40 + Math.random() * 50);
+        }
+      }
+
+      // Opens a draft with `filled` already in place, then types `typed` into
+      // it. The tour types its own text, so only the visitor's drafts do.
+      async function openCompose(filled, typed) {
+        const id = ++draft;
+        for (const name of ["to", "subject", "text"]) compose.querySelector(`.${name}`).textContent = filled[name] || "";
+        compose.classList.add("is-open");
+        if (autoplay) return;
+        await sleep(350);
+        for (const [name, text] of Object.entries(typed)) await write(compose.querySelector(`.${name}`), text, id);
+      }
+
+      function closeCompose() {
+        draft++;
+        compose.classList.remove("is-open");
+      }
+
+      function restore(row) {
+        row.closest(".slot").classList.remove("is-archived");
+        if (!autoplay && demo.classList.contains("is-on") && !typed) showHints();
+      }
+
+      function reset() {
+        rows.forEach((row) => {
+          row.classList.remove("is-selected");
+          row.classList.toggle("is-unread", unread.includes(row));
+          row.closest(".slot").classList.remove("is-archived");
+        });
+        showBox(demo.querySelector(".mailbox"));
+        closeCompose();
+        search.classList.remove("is-focused");
+        read(null);
+        status.textContent = "";
+      }
+
+      // The visitor's first key or click stops the tour and hands over the demo.
+      function takeOver() {
+        if (!autoplay) return;
+        autoplay = false;
+        run++;
+        reset();
+        showHints();
+      }
+
+      const wait = (ms, id) => new Promise((resolve, reject) => setTimeout(() => (id === run ? resolve() : reject()), ms));
+
+      async function jump(selector, id) {
+        flash(["⌘", "⇧", "Space"]);
+        showHints();
+        await wait(900, id);
+        const { label } = hints.find(({ target }) => target.matches(selector));
+        for (const letter of label) {
+          flash([letter]);
+          press(letter);
+          await wait(420, id);
+        }
+      }
+
+      async function tour() {
+        const id = run;
+        try {
+          while (true) {
+            await wait(1400, id);
+            await jump('[data-id="build"]', id);
+            await wait(1100, id);
+            await jump('[data-action="archive"]', id);
+            await wait(1400, id);
+            await jump('[data-id="dana"]', id);
+            await wait(1000, id);
+            await jump('[data-action="reply"]', id);
+            await wait(500, id);
+            await write(composeText, "Looks good. I'll send the updated notes by Friday.", draft);
+            await wait(600, id);
+            await jump('[data-action="send"]', id);
+            await wait(1100, id);
+            await jump('[data-name="Sent"]', id);
+            await wait(2200, id);
+            reset();
+          }
+        } catch {
+          // The visitor took over.
+        }
+      }
+
+      new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; }, { threshold: 0.3 }).observe(demo);
+
+      demo.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-action]");
+        if (!target) return;
+        takeOver();
+        if (available(target)) activate(target);
+      });
 
       document.addEventListener("keydown", (event) => {
+        if (!inView) return;
+        if (event.metaKey && event.shiftKey && event.code === "Space") {
+          event.preventDefault();
+          takeOver();
+          flash(["⌘", "⇧", "Space"]);
+          return showHints();
+        }
         if (event.metaKey || event.ctrlKey || event.altKey) return;
         const key = event.key;
         if (key === "Escape") {
-          typed = "";
+          takeOver();
+          hideHints();
           status.textContent = "";
-          return render();
+          return;
         }
         if (key === "Backspace" && typed) {
           typed = typed.slice(0, -1);
@@ -420,48 +949,338 @@
           return render();
         }
         if (!/^[a-z]$/i.test(key)) return;
-        const next = typed + key.toUpperCase();
-        if (!labels.some((label) => label.startsWith(next))) {
-          status.textContent = `No label starts with ${next}`;
-          return;
-        }
-        typed = next;
-        const match = labels.indexOf(typed);
-        if (match >= 0) return activate(match);
-        status.textContent = "";
-        render();
+        takeOver();
+        if (!demo.classList.contains("is-on")) showHints();
+        flash([key.toUpperCase()]);
+        press(key.toUpperCase());
       });
 
-      render();
+      // Real date and time: the menu bar clock ticks, and each message is
+      // dated this many minutes before the visit.
+      const ago = {
+        dana: 29, build: 54, maya: 71, leo: 26 * 60, books: 50 * 60,
+        "draft-maya": 40, "draft-leo": 20 * 60,
+        "sent-team": 3 * 60, "sent-dana": 28 * 60, "sent-books": 74 * 60,
+        "trash-digest": 4 * 1440, "trash-prize": 5 * 1440,
+      };
+      const clock = demo.querySelector(".clock");
+      const day = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" });
+      const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+      const weekday = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+      const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+      function stamp(date, now) {
+        const days = Math.round((startOfDay(now) - startOfDay(date)) / 864e5);
+        if (days === 0) return time.format(date);
+        if (days === 1) return "Yesterday";
+        return weekday.format(date);
+      }
+
+      function tick() {
+        const now = new Date();
+        clock.textContent = `${day.format(now).replace(",", "")}  ${time.format(now)}`;
+        for (const row of rows) {
+          row.querySelector("time").textContent = stamp(new Date(now - ago[row.dataset.id] * 6e4), now);
+        }
+        setTimeout(tick, 60000 - (now % 60000));
+      }
+
+      // The window's height follows the screen, so only list the messages
+      // that fit whole instead of showing one cut in half.
+      const list = demo.querySelector(".list");
+      const slots = [...list.querySelectorAll(".slot")];
+      let fitTimer;
+      function fit() {
+        slots.forEach((slot) => slot.classList.remove("is-clipped"));
+        const bottom = list.getBoundingClientRect().bottom;
+        let full = false;
+        for (const slot of slots) {
+          full = full || slot.getBoundingClientRect().bottom > bottom + 0.5;
+          slot.classList.toggle("is-clipped", full);
+        }
+      }
+      // Re-fit once an archive or restore has finished collapsing or growing.
+      const refit = () => {
+        clearTimeout(fitTimer);
+        fitTimer = setTimeout(fit, 360);
+      };
+      new ResizeObserver(fit).observe(list);
+      list.addEventListener("transitionend", (event) => {
+        if (event.propertyName === "grid-template-rows") refit();
+      });
+
+      tick();
+      if (autoplay) tour();
+      else showHints();
     })();
 
     (() => {
+      const canvas = document.querySelector(".backdrop");
+      const hero = document.querySelector(".hero");
+      const ctx = canvas.getContext("2d");
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const pitch = 56;
+      const cap = 44;
+      const letters = "ASDFJKL";
+      const base = document.createElement("canvas");
+      let width, height, cols, rows, originX, dpr;
+      let hints = [];
+      let pointer = null;
+      let visible = true;
+      let frame = 0;
+      let lastSpawn = 0;
+      let blocked = [];
+      let colors;
+
+      // Fades out toward the end of the hero.
+      function weight(x, y) {
+        return Math.min(1, Math.max(0, (height - y) / (height * 0.45)));
+      }
+
+      // Hints never pop up behind text or the demo.
+      function covered(x, y) {
+        return blocked.some((r) => x + cap > r.left && x < r.right && y + cap > r.top && y < r.bottom);
+      }
+
+      const cellX = (col) => originX + col * pitch;
+      const cellY = (row) => 8 + row * pitch;
+
+      function readColors() {
+        const style = getComputedStyle(document.documentElement);
+        const get = (name) => style.getPropertyValue(name).trim();
+        colors = {
+          face: get("--cap-face"), faceAlpha: parseFloat(get("--cap-face-alpha")),
+          edge: get("--cap-edge"), edgeAlpha: parseFloat(get("--cap-edge-alpha")),
+        };
+      }
+
+      function drawCap(c, x, y, w, lift) {
+        c.fillStyle = `rgba(${colors.edge}, ${colors.edgeAlpha * w})`;
+        c.beginPath();
+        c.roundRect(x, y + 2, cap, cap, 9);
+        c.fill();
+        c.fillStyle = `rgba(${colors.face}, ${(colors.faceAlpha + lift) * w})`;
+        c.beginPath();
+        c.roundRect(x, y, cap, cap, 9);
+        c.fill();
+      }
+
+      function size() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = document.documentElement.clientWidth;
+        height = Math.round(hero.getBoundingClientRect().bottom + window.scrollY + 48);
+        for (const c of [canvas, base]) {
+          c.width = width * dpr;
+          c.height = height * dpr;
+        }
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        cols = Math.ceil(width / pitch) + 1;
+        rows = Math.ceil(height / pitch);
+        originX = (width - cols * pitch) / 2;
+        const pad = 14;
+        blocked = [...document.querySelectorAll(".top a, .pitch h1, .pitch .lede, .pitch .download, .pitch .command, .pitch .fineprint, .desk, .demo-caption")].map((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left - pad, right: r.right + pad, top: r.top + window.scrollY - pad, bottom: r.bottom + window.scrollY + pad };
+        });
+        readColors();
+        const b = base.getContext("2d");
+        b.clearRect(0, 0, base.width, base.height);
+        b.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const x = cellX(col), y = cellY(row);
+            // Caps behind text stay faint so the copy reads cleanly.
+            const w = weight(x + cap / 2, y + cap / 2) * (covered(x, y) ? 0.35 : 1);
+            if (w > 0.03) drawCap(b, x, y, w, 0);
+          }
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        hints = [];
+      }
+
+      function spawn(now) {
+        for (let tries = 0; tries < 8; tries++) {
+          const col = Math.floor(Math.random() * cols);
+          const row = Math.floor(Math.random() * rows);
+          const w = weight(cellX(col) + cap / 2, cellY(row) + cap / 2);
+          if (w < 0.45 || covered(cellX(col), cellY(row)) || hints.some((hint) => hint.col === col && hint.row === row)) continue;
+          const first = letters[Math.floor(Math.random() * letters.length)];
+          const second = letters.replace(first, "")[Math.floor(Math.random() * (letters.length - 1))];
+          hints.push({ col, row, w, label: first + second, born: now, life: 1800 + Math.random() * 1600 });
+          return;
+        }
+      }
+
+      function drawHint(hint, now) {
+        const age = Math.min(1, (now - hint.born) / hint.life);
+        const fade = age < 0.12 ? age / 0.12 : age > 0.75 ? (1 - age) / 0.25 : 1;
+        const pop = 0.75 + 0.25 * Math.min(1, age / 0.08);
+        const alpha = fade * hint.w;
+        const x = cellX(hint.col) - 5, y = cellY(hint.row) - 6;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(pop, pop);
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.3 * alpha})`;
+        ctx.beginPath();
+        ctx.roundRect(0, 1, 28, 17, 4);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 213, 74, ${alpha})`;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 28, 17, 4);
+        ctx.fill();
+        ctx.fillStyle = `rgba(42, 33, 0, ${alpha})`;
+        ctx.font = '600 10px "JetBrains Mono", ui-monospace, monospace';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(hint.label, 14, 9);
+        ctx.restore();
+      }
+
+      function draw(now) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(base, 0, 0, width, height);
+        if (pointer) {
+          const reach = 160;
+          for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+              const x = cellX(col), y = cellY(row);
+              const distance = Math.hypot(x + cap / 2 - pointer.x, y + cap / 2 - pointer.y);
+              if (distance < reach) drawCap(ctx, x, y, weight(x + cap / 2, y + cap / 2), 0.5 * (1 - distance / reach));
+            }
+          }
+        }
+        const limit = Math.min(26, Math.round(cols * rows * 0.035));
+        if (now - lastSpawn > 220 && hints.length < limit) {
+          spawn(now);
+          lastSpawn = now;
+        }
+        hints = hints.filter((hint) => now - hint.born < hint.life);
+        for (const hint of hints) drawHint(hint, now);
+      }
+
+      function loop(now) {
+        draw(now);
+        frame = requestAnimationFrame(loop);
+      }
+
+      function start() {
+        cancelAnimationFrame(frame);
+        if (visible && !document.hidden) frame = requestAnimationFrame(loop);
+      }
+
+      function drawStill() {
+        const now = performance.now();
+        for (let i = 0; i < 14; i++) spawn(now - 600);
+        draw(now);
+      }
+
+      function setup() {
+        size();
+        if (reduceMotion) drawStill();
+      }
+
+      setup();
+      document.fonts.ready.then(setup);
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(setup, 150);
+      });
+      if (reduceMotion) return;
+
+      window.addEventListener("pointermove", (event) => {
+        pointer = event.pointerType === "mouse" ? { x: event.pageX, y: event.pageY } : null;
+      });
+      document.documentElement.addEventListener("pointerleave", () => { pointer = null; });
+      new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        start();
+      }).observe(canvas);
+      document.addEventListener("visibilitychange", start);
+      start();
+    })();
+
+    (() => {
+      const section = document.querySelector(".scrolly");
       const tabs = [...document.querySelectorAll(".tab")];
       const panel = document.getElementById("shot");
-      const image = panel.querySelector("img");
+      const first = panel.querySelector("img");
+      const pinnable = matchMedia("(min-width: 861px) and (min-height: 600px)");
 
-      function select(tab) {
-        tabs.forEach((other) => {
-          const selected = other === tab;
-          other.setAttribute("aria-selected", selected);
-          other.tabIndex = selected ? 0 : -1;
-        });
+      // Every screen is in place up front, so switching is a crossfade, not a load.
+      const images = tabs.map((tab, i) => {
+        if (i === 0) return first;
+        const image = first.cloneNode();
+        image.classList.remove("is-active");
         image.src = `assets/screenshots/settings-${tab.dataset.shot}.webp`;
-        image.alt = tab.dataset.alt;
-        panel.setAttribute("aria-labelledby", tab.id);
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        panel.append(image);
+        return image;
+      });
+
+      let current = 0;
+      function select(index) {
+        current = index;
+        tabs.forEach((tab, i) => {
+          const selected = i === index;
+          tab.setAttribute("aria-selected", selected);
+          tab.tabIndex = selected ? 0 : -1;
+          images[i].classList.toggle("is-active", selected);
+          images[i].alt = selected ? tab.dataset.alt : "";
+          images[i].toggleAttribute("aria-hidden", !selected);
+        });
+        panel.setAttribute("aria-labelledby", tabs[index].id);
+      }
+
+      // How far the page has scrolled through the pinned section, from 0 to 1.
+      function progress() {
+        const top = section.getBoundingClientRect().top;
+        const range = section.offsetHeight - window.innerHeight;
+        return range > 0 ? Math.min(1, Math.max(0, -top / range)) : 0;
+      }
+
+      function onScroll() {
+        const position = progress() * tabs.length;
+        const index = Math.min(tabs.length - 1, Math.floor(position));
+        if (index !== current) select(index);
+        tabs[index].style.setProperty("--fill", Math.min(1, position - index));
+      }
+
+      // A tab click scrolls to that tab's step, so the scroll and the tabs agree.
+      function go(index) {
+        select(index);
+        if (!section.classList.contains("is-pinned")) return;
+        const range = section.offsetHeight - window.innerHeight;
+        const top = section.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: top + range * ((index + 0.05) / tabs.length), behavior: "smooth" });
+      }
+
+      function setMode() {
+        section.classList.toggle("is-pinned", pinnable.matches);
+        if (pinnable.matches) {
+          window.addEventListener("scroll", onScroll, { passive: true });
+          onScroll();
+        } else {
+          window.removeEventListener("scroll", onScroll);
+        }
       }
 
       tabs.forEach((tab, i) => {
-        tab.addEventListener("click", () => select(tab));
+        tab.addEventListener("click", () => go(i));
         tab.addEventListener("keydown", (event) => {
           const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
           if (!step) return;
           event.preventDefault();
-          const next = tabs[(i + step + tabs.length) % tabs.length];
-          select(next);
-          next.focus();
+          const next = (i + step + tabs.length) % tabs.length;
+          go(next);
+          tabs[next].focus({ preventScroll: true });
         });
       });
+
+      pinnable.addEventListener("change", setMode);
+      setMode();
     })();
 
     // Copy buttons: copy the command beside them.

@@ -4,6 +4,8 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 [Website and download](https://alvaldes.github.io/jump/)
 
+[![The JUMP website: the headline "Click anything on your Mac without touching the mouse." above a live demo where every button and message in a Mail window has a yellow label](docs/assets/screenshots/landing-hero.webp)](https://alvaldes.github.io/jump/)
+
 > Status: v1.1.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
 
 ## Install
@@ -21,6 +23,10 @@ JUMP needs macOS 26 or later.
 4. Press ⌘⇧Space in any window.
 
 ## Features
+
+![The website's demo after typing D: only the labels that start with D are left, so the next key picks one](docs/assets/screenshots/landing-hints.webp)
+
+Each key narrows the labels. After `D`, only the six that start with D are left, and the next key clicks one. The [website](https://alvaldes.github.io/jump/) has this demo running live.
 
 | Shortcut | Mode | What it does |
 |---|---|---|

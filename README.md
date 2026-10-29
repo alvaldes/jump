@@ -4,6 +4,8 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 [Website and download](https://alvaldes.github.io/jump/)
 
+<a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d" target="_blank" rel="noopener noreferrer"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=light&amp;t=1793287748983"></a>
+
 [![The JUMP website: the headline "Click anything on your Mac without touching the mouse." above a live demo where every button and message in a Mail window has a yellow label](docs/assets/screenshots/landing-hero.webp)](https://alvaldes.github.io/jump/)
 
 > Status: v1.1.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.

@@ -106,6 +106,8 @@
     .fineprint { font-size: 0.9375rem; color: var(--shade); margin: 1rem 0 0; }
     .pitch .command { margin-top: 0.6rem; }
     .pitch .fineprint { font-size: 0.875rem; margin-top: 0.6rem; }
+    .producthunt { margin: 1rem 0 0; }
+    .producthunt img { display: block; max-width: 100%; height: auto; }
 
     /* Keycaps: the shortcuts as real keys */
     .key {
@@ -404,6 +406,7 @@
                       </button>
           </div>
           <p class="fineprint">Version 1.1.0 for macOS 26 and later. Free and open source.</p>
+          <p class="producthunt"><a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d" target="_blank" rel="noopener noreferrer"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=light&amp;t=1793287748983"></a></p>
           </div>
         </div>
 
@@ -1079,7 +1082,7 @@
         rows = Math.ceil(height / pitch);
         originX = (width - cols * pitch) / 2;
         const pad = 14;
-        blocked = [...document.querySelectorAll(".top a, .pitch h1, .pitch .lede, .pitch .download, .pitch .command, .pitch .fineprint, .desk, .demo-caption")].map((el) => {
+        blocked = [...document.querySelectorAll(".top a, .pitch h1, .pitch .lede, .pitch .download, .pitch .command, .pitch .fineprint, .pitch .producthunt, .desk, .demo-caption")].map((el) => {
           const r = el.getBoundingClientRect();
           return { left: r.left - pad, right: r.right + pad, top: r.top + window.scrollY - pad, bottom: r.bottom + window.scrollY + pad };
         });

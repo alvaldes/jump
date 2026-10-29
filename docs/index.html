@@ -106,8 +106,13 @@
     .fineprint { font-size: 0.9375rem; color: var(--shade); margin: 1rem 0 0; }
     .pitch .command { margin-top: 0.6rem; }
     .pitch .fineprint { font-size: 0.875rem; margin-top: 0.6rem; }
-    .producthunt { margin: 1rem 0 0; }
-    .producthunt img { display: block; max-width: 100%; height: auto; }
+    /* The badge sits under the headline and the actions span both rows,
+       so the two columns end on the same line. */
+    .pitch h1 { grid-column: 1; grid-row: 1; }
+    .pitch .actions { grid-column: 2; grid-row: 1 / span 2; }
+    .producthunt { grid-column: 1; grid-row: 2; margin: 0; }
+    .producthunt a { display: inline-block; border-radius: 10px; }
+    .producthunt img { display: block; width: 200px; max-width: 100%; height: auto; }
 
     /* Keycaps: the shortcuts as real keys */
     .key {
@@ -362,6 +367,7 @@
     @media (max-width: 860px) {
       .hero { padding-top: 2rem; }
       .pitch { grid-template-columns: 1fr; margin-bottom: 2.5rem; }
+      .pitch h1, .pitch .actions, .producthunt { grid-column: auto; grid-row: auto; }
       .mode { grid-template-columns: 1fr; gap: 0.75rem; }
       .details { grid-template-columns: 1fr; }
       .shots { grid-template-columns: 1fr; }
@@ -391,7 +397,7 @@
       <div class="hero">
         <div class="pitch">
           <h1>Click anything on your Mac <span class="mark">without touchin<svg viewBox="0 0 300 20" aria-hidden="true"><path pathLength="1" d="M3 6.5C48 3.8 104 4.6 160 4.2S258 3.4 297 5.2"/><path pathLength="1" d="M14 15.5C70 12.4 132 12.9 186 12.1S262 11.6 288 13.4"/></svg></span>g the mouse.</h1>
-          <div>
+          <div class="actions">
           <p class="lede">Press a shortcut and every button, link and field in the window gets a short label. Type the label to click it.</p>
           <a class="download" href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M9 2h2v9.17l3.59-3.58L16 9l-6 6-6-6 1.41-1.41L9 11.17z M3 16h14v2H3z"/></svg>
@@ -406,8 +412,8 @@
                       </button>
           </div>
           <p class="fineprint">Version 1.1.0 for macOS 26 and later. Free and open source.</p>
-          <p class="producthunt"><a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d" target="_blank" rel="noopener noreferrer"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=light&amp;t=1793287748983"></a></p>
           </div>
+          <p class="producthunt"><a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d" target="_blank" rel="noopener noreferrer"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=dark&amp;t=1793287748983"></a></p>
         </div>
 
         <div class="demo" id="demo">

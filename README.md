@@ -2,9 +2,11 @@
 
 Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable element gets a short label, type the label to click it. No mouse required.
 
-[Website and download](https://alvaldes.github.io/jump/)
-
-<a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d" target="_blank" rel="noopener noreferrer"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=light&amp;t=1793287748983"></a>
+<p>
+  <a href="https://alvaldes.github.io/jump/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/badges/website-dark.svg"><img alt="Visit the website" width="250" height="54" src="docs/assets/badges/website-light.svg"></picture></a>
+  <a href="https://github.com/alvaldes/jump/releases/latest/download/JUMP.dmg"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/badges/download-dark.svg"><img alt="Download for macOS" width="250" height="54" src="docs/assets/badges/download-light.svg"></picture></a>
+  <a href="https://www.producthunt.com/products/jump-9?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jump-78bc837b-e350-4f45-953f-7f61e183414d"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=dark&amp;t=1793287748983"><img alt="JUMP - Click anything on your Mac from the keyboard | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1296237&amp;theme=light&amp;t=1793287748983"></picture></a>
+</p>
 
 [![The JUMP website: the headline "Click anything on your Mac without touching the mouse." above a live demo where every button and message in a Mail window has a yellow label](docs/assets/screenshots/landing-hero.webp)](https://alvaldes.github.io/jump/)
 

@@ -1,8 +1,11 @@
 import AppKit
+import JumpKit
 import SwiftUI
 
 /// Sized to fit the window without scrolling: it is the first pane people see.
 struct AboutSettings: View {
+    let updates: UpdateChecker
+
     var body: some View {
         VStack(spacing: 18) {
             VStack(spacing: 8) {
@@ -14,8 +17,11 @@ struct AboutSettings: View {
                     .shadow(color: .black.opacity(0.35), radius: 16, y: 7)
                 Text("JUMP").font(.system(size: 30, weight: .bold, design: .rounded))
                 Text("Keyboard-driven screen navigation for macOS.").foregroundStyle(.secondary)
-                Keycap(label: "v\(AppVersion.short)", minWidth: 60)
-                    .padding(.top, 2)
+                HStack(spacing: 8) {
+                    Keycap(label: "v\(AppVersion.short)", minWidth: 60)
+                    UpdateBadge(updates: updates)
+                }
+                .padding(.top, 2)
             }
             .frame(maxWidth: .infinity)
 

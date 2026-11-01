@@ -15,6 +15,7 @@ struct JumpApp: App {
     @State private var launchAtLogin = LaunchAtLogin()
     @State private var screenRecording = ScreenRecordingPermission()
     @State private var hintShortcut = HintShortcut()
+    @State private var updates: UpdateChecker
     private let recognizer: ScreenTextRecognizer
     private let services: AppServices
     private let switcher: ModeSwitcher<AXNode, Scroller<AXScrollControl>>
@@ -75,11 +76,28 @@ struct JumpApp: App {
             actionModifiers: { settings.actionModifiers }
         )
         let switcher = ModeSwitcher(hints: hintMode, scroll: scrollMode, search: searchMode)
+        var updateClient = UpdateClient.live
+        #if DEBUG
+        // Pretends GitHub has a newer release: JUMP_FAKE_UPDATE=<version>.
+        if let version = ProcessInfo.processInfo.environment["JUMP_FAKE_UPDATE"] {
+            let release = AppRelease(
+                version: version,
+                pageURL: URL(string: "https://github.com/alvaldes/jump/releases")!,
+                highlights: ["Update notices in the menu and in Settings",
+                             "Choose how often JUMP checks for updates",
+                             "A badge next to the version when a new one is out"]
+            )
+            updateClient = UpdateClient(fetchLatest: { release }, now: { Date() })
+        }
+        #endif
+        let updates = UpdateChecker(currentVersion: AppVersion.short, schedule: { settings.updateCheckSchedule },
+                                    client: updateClient)
 
         _permission = State(initialValue: permission)
         _settings = State(initialValue: settings)
         _hintMode = State(initialValue: hintMode)
         _searchMode = State(initialValue: searchMode)
+        _updates = State(initialValue: updates)
         self.services = services
         self.recognizer = recognizer
         self.switcher = switcher
@@ -95,6 +113,7 @@ struct JumpApp: App {
 
         // Track grants and revocations for the whole app lifetime.
         Task { await permission.monitor() }
+        Task { await updates.run() }
         KeyboardShortcuts.onKeyDown(for: .activateHints) { switcher.activateHints() }
         KeyboardShortcuts.onKeyDown(for: .activateScroll) { switcher.activateScroll() }
         KeyboardShortcuts.onKeyDown(for: .activateSearch) { switcher.activateSearch() }
@@ -103,7 +122,7 @@ struct JumpApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuContent(permission: permission, hintMode: hintMode, searchMode: searchMode, settingsOpener: settingsOpener,
-                        hintShortcut: hintShortcut)
+                        hintShortcut: hintShortcut, updates: updates)
         } label: {
             MenuBarLabel(imageName: settings.menuBarIcon.imageName, opener: settingsOpener)
         }
@@ -116,7 +135,7 @@ struct JumpApp: App {
 
         Settings {
             SettingsView(settings: settings, launchAtLogin: launchAtLogin, accessibility: permission,
-                         screenRecording: screenRecording, recognizer: recognizer)
+                         screenRecording: screenRecording, recognizer: recognizer, updates: updates)
         }
     }
 }

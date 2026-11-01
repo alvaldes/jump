@@ -45,6 +45,7 @@ All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves i
 - **OCR fallback (optional).** For windows without usable Accessibility text (terminals, PDFs, images), JUMP can recognize text on screen. It is off by default and needs the Screen Recording permission, requested only when you turn it on. Captures never leave memory.
 - **Appearance.** Five hint themes (Dark, Light, System, Accent, Classic) with readable contrast, label size from 7 to 20 pt, upper or lower case labels, and Liquid Glass (Off, Regular, Clear). Scroll speed (Slow, Normal, Fast) and the scroll area outline can be changed in Behavior.
 - **App.** Three menu bar icons, optional Dock icon (official or glyph), launch at login.
+- **Update notices.** JUMP asks GitHub for the latest release (every day by default; every 6 hours, every week or off in Settings, General). When a new version is out, the menu bar menu offers to download it, and Settings marks the version as outdated and lists what's new. It doesn't install anything itself: Homebrew users run `brew upgrade --cask jump`, everyone else downloads the new DMG.
 - **Leaves the mode when focus moves**, whether by mouse, ⌘-Tab, ⌘\` or a window manager such as AeroSpace.
 
 ## Screenshots
@@ -59,6 +60,8 @@ All three shortcuts can be changed in Settings. Inside any mode, `⌘,` leaves i
 
 - **Accessibility** (required): to read and act on other apps' elements.
 - **Screen Recording** (optional): only for the OCR fallback.
+
+JUMP sends nothing anywhere: no analytics, no telemetry. Its only network request is the update check, which asks GitHub's API (`api.github.com/repos/alvaldes/jump/releases/latest`) on the schedule you pick; set it to Off in Settings, General and only **Check Now** asks.
 
 ## Requirements
 
@@ -92,9 +95,9 @@ To keep it, sign with your own (free) Apple Development certificate:
 
 ### Releasing
 
-1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`, commit, and tag the commit `v<version>`.
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`, rename `## Unreleased` in [CHANGELOG.md](CHANGELOG.md) to the version, commit, and tag the commit `v<version>`.
 2. `scripts/release.sh` builds the signed Release app and writes `dist/JUMP.dmg` (a fixed name, so the website's download link always gets the latest release). It refuses uncommitted changes, an untagged commit, and an ad-hoc signature (users would lose the Accessibility permission on every update).
-3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed, and updates the version and sha256 of the Homebrew cask in [alvaldes/homebrew-tap](https://github.com/alvaldes/homebrew-tap).
+3. Push the tag, then `scripts/release.sh --upload` attaches the disk image to the GitHub release, creating the release if needed, sets the release notes to the version's section of CHANGELOG.md (the script stops before building if there is none), and updates the version and sha256 of the Homebrew cask in [alvaldes/homebrew-tap](https://github.com/alvaldes/homebrew-tap).
 
 Until JUMP is notarized, macOS asks people to confirm the first launch; [Install](#install) walks through it.
 

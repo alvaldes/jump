@@ -20,6 +20,8 @@ public final class JumpSettings {
     public private(set) var excludedApps: [String]
     /// Which modifier, held while typing a label, chooses each click action.
     public private(set) var actionModifiers: ActionModifiers
+    /// How often JUMP looks for a new version on GitHub.
+    public private(set) var updateCheckSchedule: UpdateCheckSchedule
 
     private let defaults: UserDefaults
 
@@ -39,6 +41,7 @@ public final class JumpSettings {
         static let rightClickModifier = "rightClickModifier"
         static let doubleClickModifier = "doubleClickModifier"
         static let moveCursorModifier = "moveCursorModifier"
+        static let updateCheckSchedule = "updateCheckSchedule"
     }
 
     /// Labels need at least two characters to tell elements apart.
@@ -57,6 +60,8 @@ public final class JumpSettings {
         self.showsScrollOutline = defaults.object(forKey: Key.scrollOutline) as? Bool ?? true
         self.excludedApps = defaults.object(forKey: Key.excludedApps) as? [String] ?? []
         self.actionModifiers = Self.storedActionModifiers(in: defaults)
+        self.updateCheckSchedule = defaults.string(forKey: Key.updateCheckSchedule)
+            .flatMap(UpdateCheckSchedule.init(rawValue:)) ?? .daily
     }
 
     /// Stores the characters used for labels, lowercased, without duplicates or
@@ -121,6 +126,11 @@ public final class JumpSettings {
     public func setRecognizesScreenText(_ enabled: Bool) {
         recognizesScreenText = enabled
         defaults.set(enabled, forKey: Key.recognizeScreenText)
+    }
+
+    public func setUpdateCheckSchedule(_ schedule: UpdateCheckSchedule) {
+        updateCheckSchedule = schedule
+        defaults.set(schedule.rawValue, forKey: Key.updateCheckSchedule)
     }
 
     /// Turns JUMP's shortcuts off while this app is in front. Empty identifiers are ignored.

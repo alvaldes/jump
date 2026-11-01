@@ -8,6 +8,7 @@ struct MenuContent: View {
     let searchMode: LiveTextSearchMode
     let settingsOpener: SettingsOpener
     let hintShortcut: HintShortcut
+    let updates: UpdateChecker
 
     @Environment(\.openWindow) private var openWindow
 
@@ -37,6 +38,12 @@ struct MenuContent: View {
             settingsOpener.open()
         }
         .keyboardShortcut(",")
+
+        if let release = updates.available {
+            Button("Download JUMP \(release.version)…") {
+                NSWorkspace.shared.open(release.pageURL)
+            }
+        }
 
         Button("Quit JUMP") {
             NSApp.terminate(nil)

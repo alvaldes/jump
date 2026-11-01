@@ -4,10 +4,11 @@ import SwiftUI
 struct GeneralSettings: View {
     let settings: JumpSettings
     let launchAtLogin: LaunchAtLogin
+    let updates: UpdateChecker
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PaneHeader(title: "General", subtitle: "How JUMP starts and where it lives.")
+            PaneHeader(title: "General", subtitle: "How JUMP starts, where it lives and how it stays current.")
 
             SettingsCard(title: "Startup", symbol: "power") {
                 SettingRow(title: "Launch at login") {
@@ -63,6 +64,8 @@ struct GeneralSettings: View {
                 .disabled(!settings.showInDock)
                 .opacity(settings.showInDock ? 1 : 0.5)
             }
+
+            UpdatesCard(settings: settings, updates: updates)
         }
         .onAppear { launchAtLogin.refresh() }
     }

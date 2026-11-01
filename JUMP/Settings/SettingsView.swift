@@ -37,6 +37,7 @@ struct SettingsView: View {
     let accessibility: AccessibilityPermission
     let screenRecording: ScreenRecordingPermission
     let recognizer: ScreenTextRecognizer
+    let updates: UpdateChecker
 
     /// Every opening starts on About.
     @State var area: SettingsArea = .about
@@ -44,7 +45,7 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            SettingsSidebar(selection: $area)
+            SettingsSidebar(selection: $area, updates: updates)
             Divider()
             ScrollView {
                 pane
@@ -72,12 +73,12 @@ struct SettingsView: View {
     @ViewBuilder
     private var pane: some View {
         switch area {
-        case .general: GeneralSettings(settings: settings, launchAtLogin: launchAtLogin)
+        case .general: GeneralSettings(settings: settings, launchAtLogin: launchAtLogin, updates: updates)
         case .shortcuts: ShortcutsSettings(settings: settings)
         case .appearance: AppearanceSettings(settings: settings)
         case .behavior: BehaviorSettings(settings: settings, screenRecording: screenRecording, recognizer: recognizer)
         case .permissions: PermissionsSettings(accessibility: accessibility, screenRecording: screenRecording)
-        case .about: AboutSettings()
+        case .about: AboutSettings(updates: updates)
         }
     }
 }
@@ -86,6 +87,7 @@ struct SettingsView: View {
 /// on a keycap face with a homing bump.
 struct SettingsSidebar: View {
     @Binding var selection: SettingsArea
+    let updates: UpdateChecker
 
     @Environment(\.colorScheme) private var scheme
 
@@ -98,6 +100,7 @@ struct SettingsSidebar: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("JUMP").font(.system(size: 17, weight: .bold, design: .rounded))
                     Text("Version \(AppVersion.short)").font(.caption).foregroundStyle(.secondary)
+                    UpdateBadge(updates: updates).padding(.top, 4)
                 }
             }
             .padding(.horizontal, 8)

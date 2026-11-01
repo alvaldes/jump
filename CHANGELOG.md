@@ -6,7 +6,7 @@ Each `## <version>` section becomes that version's GitHub release notes
 one short line about what a user gets. Write the next version's bullets under
 `## Unreleased`, then rename the heading to the version before tagging.
 
-## Unreleased
+## 1.2.0
 
 - Update notices: JUMP tells you in the menu bar menu and in Settings when a new version is out
 - See what a new version brings, and choose how often to check, in Settings › General

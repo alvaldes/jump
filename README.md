@@ -10,7 +10,7 @@ Keyboard-driven screen navigation for macOS. Press a shortcut, every clickable e
 
 [![The JUMP website: the headline "Click anything on your Mac without touching the mouse." above a live demo where every button and message in a Mail window has a yellow label](docs/assets/screenshots/landing-hero.webp)](https://alvaldes.github.io/jump/)
 
-> Status: v1.1.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
+> Status: v1.2.0 (not yet notarized). See [`my-idea.md`](my-idea.md) for the design spec and roadmap.
 
 ## Install
 

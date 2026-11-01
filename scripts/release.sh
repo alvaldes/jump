@@ -3,8 +3,10 @@
 # dist/JUMP.dmg. The name never changes so the website can link to
 # releases/latest/download/JUMP.dmg; the volume name carries the version.
 # With --upload it also attaches the .dmg to the GitHub release for that tag,
-# creating the release if it does not exist, and points the Homebrew cask in
-# alvaldes/homebrew-tap at it.
+# creating the release if it does not exist, sets the release notes to the
+# version's section of CHANGELOG.md, and points the Homebrew cask in
+# alvaldes/homebrew-tap at it. JUMP lists the top-level bullets of those notes
+# under "What's new" in Settings › General.
 #
 # Usage: scripts/release.sh [--upload]
 #
@@ -37,6 +39,14 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
+# The release notes: the "## <version>" section of CHANGELOG.md, without its heading.
+notes="$work/notes.md"
+awk -v v="$version" '/^## /{ if (found) exit; found = ($2 == v); next } found' CHANGELOG.md \
+  | sed -e '/./,$!d' > "$notes"
+if ! grep -q '^[-*+] ' "$notes"; then
+  echo "error: CHANGELOG.md has no \"## $version\" section with bullets; describe what this version brings" >&2; exit 1
+fi
+
 echo "Building JUMP $version (Release)…"
 xcodegen generate --quiet
 xcodebuild -project JUMP.xcodeproj -scheme JUMP -configuration Release \
@@ -67,9 +77,10 @@ echo "  sha256:    $sha"
 if $upload; then
   if gh release view "$tag" >/dev/null 2>&1; then
     gh release upload "$tag" "$dmg" --clobber
+    gh release edit "$tag" --notes-file "$notes"
   else
     # --verify-tag: the tag must already be pushed.
-    gh release create "$tag" "$dmg" --title "JUMP $version" --generate-notes --verify-tag
+    gh release create "$tag" "$dmg" --title "JUMP $version" --notes-file "$notes" --verify-tag
   fi
   echo "Uploaded to release $tag."
 
